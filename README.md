@@ -1,6 +1,6 @@
 # Docker-ZED
 
-Dockerfile to run _ZED tools_ and the _pyzed_ API with GPU acess. This can/will be updated according to new needs of the TFC team. 
+Dockerfile to run _ZED tools_ ,the _pyzed_ API, _ROS2 Foxy_ and ultralytics with GPU acess. This can/will be updated according to new needs of the TFC team. 
 
 ## Prerequisites
 Before running this script, ensure:
