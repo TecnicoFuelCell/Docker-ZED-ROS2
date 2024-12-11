@@ -9,6 +9,9 @@ RUN apt update && apt install -y \
     gnupg2 \
     lsb-release \
     curl \
+    git python3-pip \
+    tmux nano \
+    x11-apps \
     software-properties-common && \
     locale-gen en_US en_US.UTF-8 && \
     update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 && \
@@ -28,13 +31,24 @@ RUN apt update && apt upgrade -y && \
     apt install -y ros-foxy-desktop python3-argcomplete && \
     apt install -y python3-colcon-common-extensions
 
+# Clone and build ZED Open Capture
+WORKDIR /opt/share
+
+RUN git clone https://github.com/stereolabs/zed-open-capture.git && \
+    apt-get install -y libhidapi-dev libusb-1.0-0-dev libhidapi-libusb0 libhidapi-dev libopencv-dev libopencv-viz-dev && \
+    cd zed-open-capture/udev && \
+    cd .. && mkdir build && cd build && \
+    cmake .. && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
+
 #Source the project
 RUN echo "source /opt/ros/foxy/setup.bash" >> /etc/bash.bashrc
 RUN echo "source /opt/share/workspace/install/setup.bash" >> ~/.bashrc
 
 # Other usefull libraries
 RUN apt-get update && apt-get install -y \
-    git python3-pip tmux nano x11-apps\
     build-essential
 
 RUN pip install opencv-python pygame ultralytics pyserial 
