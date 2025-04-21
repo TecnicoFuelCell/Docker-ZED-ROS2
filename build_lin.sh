@@ -19,17 +19,19 @@ if [ $? -eq 0 ]; then
     # Run the Docker container with the specified names
     echo "Running the Docker container '$container_name'..."
 
-    docker run --name "$container_name" \
+    docker run -it \
+    --name "$container_name" \
     --privileged \
-    --gpus all \
-    -v /dev:/dev\
-    -it -v "$workspace:/opt/share/workspace" \
-    --env="DISPLAY" \
-    --env="QT_X11_NO_MITSHM=1" \
-    --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+    --runtime=nvidia --gpus all \
+    --network host \
+    -e DISPLAY=$DISPLAY \
+    -v $HOME/.Xauthority:/root/.Xauthority:ro \
+    -v "$workspace:/opt/share/workspace" \
+    -e QT_X11_NO_MITSHM=1 \
     "$image_name"
 
 
+    
 
     # Check if the Docker container ran successfully
     if [ $? -eq 0 ]; then
@@ -37,6 +39,7 @@ if [ $? -eq 0 ]; then
     else
         echo "Failed to start Docker container '$container_name'."
     fi
+
 else
     echo "Failed to build Docker image '$image_name'."
 fi

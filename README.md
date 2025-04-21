@@ -29,3 +29,22 @@ docker build -t <name_you_want_to_give_to_the_image> .
 ```bash
 docker run --name <name_you_want_to_give_to_the_container> --privileged --gpus all -v /dev:/dev -it -v "<your_workspace_path>:/opt/share/workspace" -env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" <name_of_your_image>
 ```
+
+## Inside Jetson
+
+To be able to run the models, you can create a container using `build_lin.sh` at `~/Documents/Docker-Zed-ROS2`. To create it, follow instructions at [Creating a Container](#creating-a-container). To use the existing one (`testfc`):
+
+```bash
+docker start testfc
+docker exec -it testfc /bin/bash
+```
+
+
+### Creating a Container
+```bash
+cd ~/Documents/Docker-Zed-ROS2
+./build_lin.sh
+> Enter the name of your Docker image: <put the name you want>
+> Enter the name of your Docker container: <put the name you want>
+> Enter the path to your workspace: /home/tfcadmin/Documents/Autonomous_Systems/ros2_ws
+```
