@@ -32,19 +32,36 @@ docker run --name <name_you_want_to_give_to_the_container> --privileged --gpus a
 
 ## Inside Jetson
 
-To be able to run the models, you can create a container using `build_lin.sh` at `~/Documents/Docker-Zed-ROS2`. To create it, follow instructions at [Creating a Container](#creating-a-container). To use the existing one (`testfc`):
+To be able to run the models, you can create a container using `build_lin.sh` at `~/Documents/Docker-Zed-ROS2`. 
 
-```bash
-docker start testfc
-docker exec -it testfc /bin/bash
-```
+**TODO(FIX): You need to recreate it each time because X11 is a bitch.**
 
+To create it:
 
-### Creating a Container
 ```bash
 cd ~/Documents/Docker-Zed-ROS2
 ./build_lin.sh
 > Enter the name of your Docker image: <put the name you want>
 > Enter the name of your Docker container: <put the name you want>
-> Enter the path to your workspace: /home/tfcadmin/Documents/Autonomous_Systems/ros2_ws
+> Enter the path to your workspace: <path to workspace> (you can ENTER and it will use default)
 ```
+
+To use it:
+
+```bash
+docker exec -it <name_of_your_container> bash
+```
+
+Inside it:
+
+```bash
+xeyes # basic test with eyes to see if X11 is working
+```
+
+Scripts:
+
+```
+cd VisionSystems/yolo_lane_detector
+python yolo_stop.py
+```
+
