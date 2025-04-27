@@ -20,7 +20,7 @@ docker rm "$container_name" >/dev/null 2>&1
 
 # Build the Docker image
 echo "Building the Docker image '$image_name'..."
-docker build -t "$image_name" .
+docker build --network host -t "$image_name" .
 
 # Check if the Docker image was built successfully
 if [ $? -eq 0 ]; then

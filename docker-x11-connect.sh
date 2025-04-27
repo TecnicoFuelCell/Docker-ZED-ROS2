@@ -1,6 +1,11 @@
 #!/bin/bash
 
-CONTAINER_NAME="tfc"
+if [ -z "$1" ]; then
+  echo "❌ Usage: $0 <container_name>"
+  exit 1
+fi
+
+CONTAINER_NAME="$1"
 XAUTH=/tmp/.docker.xauth
 REMOTE_XAUTH_PATH="/root/.Xauthority"
 

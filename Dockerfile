@@ -1,9 +1,7 @@
-FROM stereolabs/zed:4.2-devel-l4t-r36.4
+FROM dustynv/l4t-pytorch:r36.2.0
 
 # Set environment variable to non-interactive mode for apt
-ENV DEBIAN_FRONTEND=noninteractive \
-    TORCH_WHL=http://jetson.webredirect.org/jp6/cu126/+f/5cf/9ed17e35cb752/torch-2.5.0-cp310-cp310-linux_aarch64.whl \
-    TV_WHL=http://jetson.webredirect.org/jp6/cu126/+f/5f9/67f920de3953f/torchvision-0.20.0-cp310-cp310-linux_aarch64.whl
+ENV DEBIAN_FRONTEND=noninteractive
 
 
 # Update and install essential packages
@@ -42,10 +40,25 @@ RUN apt-get install -y \
 #    2. Install NumPy 1.26.1
 #    3. Install JetPack 6 GPU wheels
 # ────────────────────────────────────────────────────────────────
-RUN pip uninstall -y torch torchvision torchaudio numpy || true && \
-    pip install --no-cache-dir numpy==1.26.1 && \
-    pip install --no-cache-dir "$TORCH_WHL" && \
-    pip install --no-cache-dir "$TV_WHL"
+#ARG TORCH_WHL="https://developer.download.nvidia.com/compute/redist/jp/v61/pytorch/torch-2.5.0a0+872d972e41.nv24.08.17622132-cp310-cp310-linux_aarch64.whl"
+#ARG TV_WHL="https://pypi.jetson-ai-lab.dev/jp6/cu126/+f/5f9/67f920de3953f/torchvision-0.20.0-cp310-cp310-linux_aarch64.whl"
+
+#RUN set -e ;\
+#    pip uninstall -y torch torchvision torchaudio numpy || true && \
+#    pip install --no-cache-dir numpy==1.26.1 && \
+#    \
+#    # download wheels under their original, valid names
+#    wget -q --show-progress -P /tmp "$TORCH_WHL" && \
+#    wget -q --show-progress -P /tmp "$TV_WHL" && \
+#    \
+#    # install them (basename preserves the good filename)
+#    pip install --no-cache-dir /tmp/$(basename "$TORCH_WHL") \
+#                              /tmp/$(basename "$TV_WHL") && \
+#    \
+#    # any extra python deps *after* the GPU wheels
+#    pip install --no-cache-dir timm==0.6.12 --no-deps && \
+#    \
+#    rm -f /tmp/*.whl
 
     
 # Source ROS 2 Humble and ZED workspace setup files
