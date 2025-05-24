@@ -1,8 +1,6 @@
-FROM dustynv/l4t-pytorch:r36.2.0
+FROM stereolabs/zed:4.2-tools-devel-l4t-r35.4
 
-# Set environment variable to non-interactive mode for apt
 ENV DEBIAN_FRONTEND=noninteractive
-
 
 # Update and install essential packages
 RUN apt update && apt install -y \
@@ -19,59 +17,97 @@ RUN apt update && apt install -y \
     update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 && \
     export LANG=en_US.UTF-8
 
-# Install ROS 2 Humble key and repository
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
-    echo "deb [arch=arm64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2-latest.list > /dev/null
+# Install Foxy
+RUN add-apt-repository universe && \
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null 
 
-# Install Python3, ROS 2 Humble, and other dependencies
+
+#RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | apt-key add - && \
+#    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu focal main" > /etc/apt/sources.list.d/ros2-latest.list
+
+
 RUN apt update && apt upgrade -y && \
-    apt install -y ros-humble-desktop python3-argcomplete && \
-    apt install -y python3-colcon-common-extensions build-essential
+    apt install -y ros-foxy-desktop python3-argcomplete && \
+    apt install -y python3-colcon-common-extensions ros-foxy-tf2-geometry-msgs ros-foxy-rviz2   
 
-# Install dependencies for ZED Open Capture
-RUN apt-get install -y \
-    libhidapi-dev \
-    libusb-1.0-0-dev \
-    libopencv-dev 
+# # Clone and build ZED Open Capture
+# WORKDIR /opt/share
 
-# ────────────────────────────────────────────────────────────────
-# Python stuff
-#    1. Remove numpy, torch, torchvision
-#    2. Install NumPy 1.26.1
-#    3. Install JetPack 6 GPU wheels
-# ────────────────────────────────────────────────────────────────
-#ARG TORCH_WHL="https://developer.download.nvidia.com/compute/redist/jp/v61/pytorch/torch-2.5.0a0+872d972e41.nv24.08.17622132-cp310-cp310-linux_aarch64.whl"
-#ARG TV_WHL="https://pypi.jetson-ai-lab.dev/jp6/cu126/+f/5f9/67f920de3953f/torchvision-0.20.0-cp310-cp310-linux_aarch64.whl"
+# RUN git clone https://github.com/stereolabs/zed-open-capture.git && \
+#     apt-get install -y libhidapi-dev libusb-1.0-0-dev libhidapi-libusb0 libhidapi-dev libopencv-dev libopencv-viz-dev && \
+#     cd zed-open-capture/udev && \
+#     cd .. && mkdir build && cd build && \
+#     cmake .. && \
+#     make -j$(nproc) && \
+#     make install && \
+#     ldconfig
 
-#RUN set -e ;\
-#    pip uninstall -y torch torchvision torchaudio numpy || true && \
-#    pip install --no-cache-dir numpy==1.26.1 && \
-#    \
-#    # download wheels under their original, valid names
-#    wget -q --show-progress -P /tmp "$TORCH_WHL" && \
-#    wget -q --show-progress -P /tmp "$TV_WHL" && \
-#    \
-#    # install them (basename preserves the good filename)
-#    pip install --no-cache-dir /tmp/$(basename "$TORCH_WHL") \
-#                              /tmp/$(basename "$TV_WHL") && \
-#    \
-#    # any extra python deps *after* the GPU wheels
-#    pip install --no-cache-dir timm==0.6.12 --no-deps && \
-#    \
-#    rm -f /tmp/*.whl
-
-    
-# Source ROS 2 Humble and ZED workspace setup files
-RUN echo "source /opt/ros/humble/setup.bash" >> /etc/bash.bashrc
+#Source the project
+RUN echo "source /opt/ros/foxy/setup.bash" >> /etc/bash.bashrc
 RUN echo "source /opt/share/workspace/install/setup.bash" >> ~/.bashrc
 
-# Install additional Python libraries
+# Other usefull libraries
+RUN apt-get update && apt-get install -y \
+    build-essential
+
+# torch 
+RUN curl -L -o /tmp/torch-2.1.0a0+41361538.nv23.06-cp38-cp38-linux_aarch64.whl \
+      https://developer.download.nvidia.cn/compute/redist/jp/v512/pytorch/torch-2.1.0a0+41361538.nv23.06-cp38-cp38-linux_aarch64.whl && \
+    pip3 install /tmp/torch-2.1.0a0+41361538.nv23.06-cp38-cp38-linux_aarch64.whl && \
+    rm /tmp/torch-2.1.0a0+41361538.nv23.06-cp38-cp38-linux_aarch64.whl
+
+# -- build torchvision from source --
+# dependencies
+RUN apt-get update && apt-get install -y \
+    libjpeg-dev zlib1g-dev libpython3-dev libopenblas-dev libavcodec-dev libavformat-dev libswscale-dev
+
+# build torchvision
+WORKDIR /tmp
+RUN git clone --branch v0.16.0 https://github.com/pytorch/vision.git && \
+    cd vision && \
+    python3 setup.py install --user && \
+    cd .. && rm -rf vision
+
 RUN pip install opencv-python pygame ultralytics pyserial
+# TODO: ADD THIS (guil stuff):
+# pip install bezier==2020.1.14
+# pip install casadi
+# pip install transforms3d
+
+# install eigen
+WORKDIR /tmp
+RUN wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz && \
+    tar -xzf eigen-3.4.0.tar.gz && \
+    cd eigen-3.4.0 && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install
+
+# install GTSAM
+WORKDIR /tmp
+RUN git clone https://github.com/borglab/gtsam.git && \
+    cd gtsam && \
+    sed -i 's/\bint m_runtime;/[[maybe_unused]] int m_runtime;/' gtsam/navigation/ManifoldEKF.h && \
+    mkdir build && cd build && \
+    cmake .. \
+      -DGTSAM_BUILD_EXAMPLES=OFF \
+      -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
+      -DGTSAM_BUILD_TESTS=OFF \
+      -DGTSAM_USE_SYSTEM_EIGEN=ON \
+      -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install
+
+# setup envs
+RUN echo "source /opt/ros/foxy/setup.bash" >> /etc/bash.bashrc
+RUN echo "source /opt/share/workspace/install/setup.bash" >> ~/.bashrc
+ENV CMAKE_PREFIX_PATH="/usr/local:$CMAKE_PREFIX_PATH"
 
 # Set the working directory to the workspace
 WORKDIR /opt/share/workspace
 
-# Clean up
-RUN rm -rf /var/lib/apt/lists/*
+RUN rm -rf var/lib/apt/lists/*
 
 RUN echo "All done!"
