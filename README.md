@@ -1,31 +1,30 @@
-# Docker-ZED
+# Local simple environment
 
-Dockerfile to run _ZED tools_ ,the _pyzed_ API, _ROS2 Foxy_ and ultralytics with GPU acess. This can/will be updated according to new needs of the TFC team. 
+This dockerfile aims to provide with only the most essential tools to work with the components of the vehicle, namely Ros2 and Python 3 (and its most used libraries). It is intended to be more accessible since it doesn't require special permissions nor specific hardware. 
 
-## Prerequisites
-Before running this script, ensure:
+The environment does **NOT** have Zed tools.
 
-1. Docker is installed and running on your system.
-2. You have NVIDIA drivers and the NVIDIA Container Toolkit installed for GPU support.
-3. You have a working directory prepared for binding with the container.
-3. For linux, run the following lines:
-```bash
-xhost +local:docker
-```
+## Requirements
 
-## Script Procedure
-- Run the lin script (tested in Linux and WSL2)
+- [Docker](https://www.docker.com/products/docker-desktop/) installed and running
+- Minimum 7Gb free storage space
 
-## No Script Procedure
-* Download the docker file
-* On the directory where the docker file is, open a terminal (not a wsl one) and write:
-```bash
+## Setup
+
+> [!NOTE] 
+> For Windows users, you may need to open a terminal and enter WSL to be able to run the following commands.
+
+### 1. Build image
+
+To build the image from the dockerfile, open a terminal at the current directory and run the following command:
+```sh
 docker build -t <name_you_want_to_give_to_the_image> .
 ```
-* Open xLaunch and select the display number as 0 and proceed with the pre-selected things
-* Create on the same directory as the Dockerfile a directory /share/catkin_ws/src
-* Create the container as follows:
+for example, you may write `docker build -t tfc-simple-env .`
 
-```bash
-docker run --name <name_you_want_to_give_to_the_container> --privileged --gpus all -v /dev:/dev -it -v "<your_workspace_path>:/opt/share/workspace" -env="DISPLAY" --env="QT_X11_NO_MITSHM=1" --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" <name_of_your_image>
+### 2. Run container
+
+After building the image, you are ready to enter the container and use the tools inside, to do it run this command:
+```sh
+docker run -it -rm -v <path_to_the_code_repo>:/local-ros2 <name_you_gave_to_the_image>
 ```
