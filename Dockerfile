@@ -1,0 +1,65 @@
+# Use Ubuntu 20.04 as base image (required for ROS2 Foxy)
+FROM ubuntu:20.04
+
+# Set environment variables to avoid interactive prompts during installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Lisbon
+
+# Update package lists and install basic dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg2 \
+    lsb-release \
+    wget \
+    software-properties-common \
+    build-essential \
+    git \
+    python3 \
+    python3-pip \
+    python3-dev \
+    python3-opencv \
+    libopencv-dev \
+    vim \
+    nano \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up ROS2 repository
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+
+# Update package lists and install ROS2 Foxy
+RUN apt-get update && apt-get install -y \
+    ros-foxy-desktop \
+    python3-rosdep \
+    python3-colcon-common-extensions \
+    python3-vcstool \
+    python3-rclpy \
+    ros-foxy-geometry-msgs \
+    ros-foxy-sensor-msgs \
+    ros-foxy-std-msgs \
+    ros-foxy-nav-msgs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Initialize rosdep
+RUN rosdep init && rosdep update
+
+# Install Python libraries
+RUN pip3 install --upgrade pip
+RUN pip3 install \
+    opencv-python \
+    numpy \
+    transforms3d \
+    scikit-learn
+
+# Set up ROS2 environment
+RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
+
+# Create a workspace directory
+RUN mkdir -p /workspace
+WORKDIR /workspace
+
+# Copy the project files (you can uncomment this if you want to copy your project)
+# COPY . /workspace/
+
+# Set the default command to source ROS2 and start bash
+CMD ["bash", "-c", "source /opt/ros/foxy/setup.bash && bash"]
