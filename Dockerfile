@@ -48,7 +48,8 @@ RUN pip3 install \
     opencv-python \
     numpy \
     transforms3d \
-    scikit-learn
+    scikit-learn \
+    filterpy
 
 # Set up ROS2 environment
 RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
