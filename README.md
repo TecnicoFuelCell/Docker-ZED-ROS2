@@ -26,5 +26,5 @@ for example, you may write `docker build -t tfc-simple-env .`
 
 After building the image, you are ready to enter the container and use the tools inside, to do it run this command:
 ```sh
-docker run -it -rm -v <path_to_the_code_repo>:/local-ros2 <name_you_gave_to_the_image>
+docker run -it --rm -v <path_to_the_code_repo>:/local-ros2 <name_you_gave_to_the_image>
 ```
