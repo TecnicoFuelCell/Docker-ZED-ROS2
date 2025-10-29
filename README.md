@@ -28,3 +28,14 @@ After building the image, you are ready to enter the container and use the tools
 ```sh
 docker run -it --rm -v <path_to_the_code_repo>:/local-ros2 <name_you_gave_to_the_image>
 ```
+
+If the applications in the container need to open a new window, you should add docker to the allowed hosts of xhost in order to allow display forwarding.
+```sh
+xhost +local:docker
+docker run -it --rm \
+-e DISPLAY=$DISPLAY \
+-v <path_to_the_code_repo>:/local-ros2 \
+-v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+<name_you_gave_to_the_image>
+xhost -local:docker # disable display forwarding after running docker
+```
