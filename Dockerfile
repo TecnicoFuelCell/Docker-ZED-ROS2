@@ -76,7 +76,8 @@ RUN pip3 install \
     numpy \
     transforms3d \
     scikit-learn \
-    filterpy
+    filterpy \
+    gtsam
 
 # Set up ROS2 environment
 RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
