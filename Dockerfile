@@ -20,8 +20,6 @@ RUN apt-get update && apt-get install -y \
     python3-opencv \
     libopencv-dev \
     libeigen3-dev \
-    libgtsam-dev \
-    libgtsam-unstable-dev \
     vim \
     nano \
     && rm -rf /var/lib/apt/lists/*
@@ -45,6 +43,31 @@ RUN apt-get update && apt-get install -y \
 # Initialize rosdep
 RUN rosdep init && rosdep update
 
+# Install Eigen from source
+WORKDIR /tmp
+RUN wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz && \
+    tar -xzf eigen-3.4.0.tar.gz && \
+    cd eigen-3.4.0 && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install
+
+# install GTSAM
+WORKDIR /tmp
+RUN git clone https://github.com/borglab/gtsam.git && \
+    cd gtsam && \
+    sed -i 's/\bint m_runtime;/[[maybe_unused]] int m_runtime;/' gtsam/navigation/ManifoldEKF.h && \
+    mkdir build && cd build && \
+    cmake .. \
+      -DGTSAM_BUILD_EXAMPLES=OFF \
+      -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
+      -DGTSAM_BUILD_TESTS=OFF \
+      -DGTSAM_USE_SYSTEM_EIGEN=ON \
+      -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install
+
 # Install Python libraries
 RUN pip3 install --upgrade pip
 RUN pip3 install \
@@ -61,7 +84,7 @@ RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
 RUN mkdir -p /local-ros2
 WORKDIR /local-ros2
 
-# Copy the project files (you can uncomment this if you want to copy your project)
+# Copy the project files (uncomment this if you want to copy your project)
 # COPY . /local-ros2/
 
 # Set the default command to source ROS2 and start bash
