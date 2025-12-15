@@ -66,7 +66,8 @@ RUN git clone https://github.com/borglab/gtsam.git && \
       -DGTSAM_USE_SYSTEM_EIGEN=ON \
       -DCMAKE_INSTALL_PREFIX=/usr/local && \
     make -j$(nproc) && \
-    make install
+    make install && \
+    ldconfig
 
 # Install Python libraries
 RUN pip3 install --upgrade pip
