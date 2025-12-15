@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     python3-opencv \
     libopencv-dev \
+    libeigen3-dev \
     vim \
     nano \
     && rm -rf /var/lib/apt/lists/*
@@ -49,8 +50,7 @@ RUN pip3 install \
     numpy \
     transforms3d \
     scikit-learn \
-    filterpy \
-    gtsam
+    filterpy
 
 # Set up ROS2 environment
 RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
