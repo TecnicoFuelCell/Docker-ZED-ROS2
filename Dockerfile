@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y \
     python3-opencv \
     libopencv-dev \
     libeigen3-dev \
+    libgtsam-dev \
+    libgtsam-unstable-dev \
     vim \
     nano \
     && rm -rf /var/lib/apt/lists/*
