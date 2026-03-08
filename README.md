@@ -1,13 +1,13 @@
 # Local simple environment
 
-This dockerfile aims to provide with only the most essential tools to work with the components of the vehicle, namely Ros2 and Python 3 (and its most used libraries). It is intended to be more accessible since it doesn't require special permissions nor specific hardware. 
+This dockerfile aims to provide with only the most essential tools to work with the components of the vehicle, namely Ros2, Python 3 (and its most used libraries) and GTSAM. It is intended to be more accessible since it doesn't require special permissions nor specific hardware, but if you do have Nvidia graphics card, then is it better to use a different version that uses CUDA to achive better performance.
 
 The environment does **NOT** have Zed tools.
 
 ## Requirements
 
 - [Docker](https://www.docker.com/products/docker-desktop/) installed and running
-- Minimum 7Gb free storage space
+- Minimum 15Gb free storage space
 
 ## Setup
 
