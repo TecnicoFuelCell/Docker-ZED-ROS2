@@ -1,6 +1,6 @@
 # Local simple environment
 
-This dockerfile aims to provide with only the most essential tools to work with the components of the vehicle, namely Ros2, Python 3 (and its most used libraries) and GTSAM. It is intended to be more accessible since it doesn't require special permissions nor specific hardware, but if you do have Nvidia graphics card, then is it better to use a different version that uses CUDA to achive better performance.
+This dockerfile aims to provide with only the most essential tools to work with the vision pipeline of the autonomous vehicle, namely Ros2, Python 3 (and its most used libraries) and GTSAM. It is intended to be more accessible since it doesn't require complicated configuration of computer nor specific hardware, but if you do have Nvidia graphics card, then is it better to use a different version that uses CUDA to achive better performance.
 
 The environment does **NOT** have Zed tools.
 
@@ -8,6 +8,7 @@ The environment does **NOT** have Zed tools.
 
 - [Docker](https://www.docker.com/products/docker-desktop/) installed and running
 - Minimum 15Gb free storage space
+- Mininum 8GB RAM
 
 ## Setup
 
@@ -20,7 +21,7 @@ To build the image from the dockerfile, open a terminal at the current directory
 ```sh
 docker build -t <name_you_want_to_give_to_the_image> .
 ```
-for example, you may write `docker build -t tfc-simple-env .`
+for example, you may write `docker build -t tfc-simple-env .`. Building the image will take a while depending on the performance of your computer. 
 
 ### 2. Run container
 
