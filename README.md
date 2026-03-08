@@ -21,7 +21,8 @@ To build the image from the dockerfile, open a terminal at the current directory
 ```sh
 docker build -t <name_you_want_to_give_to_the_image> .
 ```
-for example, you may write `docker build -t tfc-simple-env .`. Building the image will take a while depending on the performance of your computer. 
+for example, you may write `docker build -t tfc-simple-env .` (don't forget the dot at the end)
+Building the image will take a while depending on the performance of your computer. 
 
 ### 2. Run container
 
