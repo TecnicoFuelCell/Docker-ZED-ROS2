@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y \
     python3-opencv \
     libopencv-dev \
     libeigen3-dev \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
     vim \
     nano \
     && rm -rf /var/lib/apt/lists/*
@@ -53,7 +55,7 @@ RUN wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz &&
     make -j$(nproc) && \
     make install
 
-# install GTSAM
+# Install GTSAM
 WORKDIR /tmp
 RUN git clone https://github.com/borglab/gtsam.git && \
     cd gtsam && \
@@ -64,6 +66,7 @@ RUN git clone https://github.com/borglab/gtsam.git && \
       -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
       -DGTSAM_BUILD_TESTS=OFF \
       -DGTSAM_USE_SYSTEM_EIGEN=ON \
+      -DGTSAM_WITH_TBB=OFF \
       -DCMAKE_INSTALL_PREFIX=/usr/local && \
     make -j$(nproc) && \
     make install && \
@@ -71,13 +74,13 @@ RUN git clone https://github.com/borglab/gtsam.git && \
 
 # Install Python libraries
 RUN pip3 install --upgrade pip
-RUN pip3 install \
-    opencv-python \
+RUN pip3 install --ignore-installed psutil \
     numpy \
     transforms3d \
     scikit-learn \
     filterpy \
-    gtsam
+    gtsam \
+    ultralytics
 
 # Set up ROS2 environment
 RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
