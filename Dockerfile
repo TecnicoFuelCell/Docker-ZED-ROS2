@@ -40,6 +40,7 @@ RUN apt-get update && apt-get install -y \
     ros-foxy-sensor-msgs \
     ros-foxy-std-msgs \
     ros-foxy-nav-msgs \
+    ros-foxy-nmea-msgs \
     && rm -rf /var/lib/apt/lists/*
 
 # Initialize rosdep
@@ -57,14 +58,14 @@ RUN wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz &&
 
 # Install GTSAM
 WORKDIR /tmp
-RUN git clone https://github.com/borglab/gtsam.git && \
+RUN git clone --branch 4.2.0 --depth 1 https://github.com/borglab/gtsam.git && \
     cd gtsam && \
-    sed -i 's/\bint m_runtime;/[[maybe_unused]] int m_runtime;/' gtsam/navigation/ManifoldEKF.h && \
     mkdir build && cd build && \
     cmake .. \
       -DGTSAM_BUILD_EXAMPLES=OFF \
       -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
       -DGTSAM_BUILD_TESTS=OFF \
+      -DGTSAM_BUILD_UNSTABLE=OFF \
       -DGTSAM_USE_SYSTEM_EIGEN=ON \
       -DGTSAM_WITH_TBB=OFF \
       -DCMAKE_INSTALL_PREFIX=/usr/local && \
