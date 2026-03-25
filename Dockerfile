@@ -69,7 +69,7 @@ RUN git clone --branch v0.16.0 https://github.com/pytorch/vision.git && \
     python3 setup.py install --user && \
     cd .. && rm -rf vision
 
-RUN pip install opencv-python pygame ultralytics pyserial
+RUN pip install opencv-python pygame ultralytics pyserial bezier==2020.1.14 casadi transforms3d
 # TODO: ADD THIS (guil stuff):
 # pip install bezier==2020.1.14
 # pip install casadi
@@ -87,9 +87,10 @@ RUN wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz &&
 
 # install GTSAM
 WORKDIR /tmp
-RUN git clone https://github.com/borglab/gtsam.git && \
+# use release/4.2 branch
+RUN git clone https://github.com/borglab/gtsam.git --branch release/4.2 && \
     cd gtsam && \
-    sed -i 's/\bint m_runtime;/[[maybe_unused]] int m_runtime;/' gtsam/navigation/ManifoldEKF.h && \
+    #sed -i 's/\bint m_runtime;/[[maybe_unused]] int m_runtime;/' gtsam/navigation/ManifoldEKF.h && \
     mkdir build && cd build && \
     cmake .. \
       -DGTSAM_BUILD_EXAMPLES=OFF \
