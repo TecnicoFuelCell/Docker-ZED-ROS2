@@ -53,6 +53,7 @@ run_args=(
   #--rm
   -it
   --name "$container_name"
+  --network host
   -v "$workspace:/local-ros2"
 )
 
