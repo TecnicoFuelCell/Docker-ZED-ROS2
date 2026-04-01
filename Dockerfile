@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     vim \
     nano \
+    iproute2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up ROS2 repository
