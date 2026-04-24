@@ -54,7 +54,7 @@ run_args=(
   -it
   --name "$container_name"
   --network host
-  -v "$workspace:/local-ros2"
+  -v "$workspace:/opt/share/workspace"
 )
 
 if [[ "$use_gpu" =~ ^[Yy]$ ]]; then

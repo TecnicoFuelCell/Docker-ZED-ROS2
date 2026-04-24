@@ -88,11 +88,11 @@ RUN pip3 install --ignore-installed psutil \
 RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
 
 # Create a workspace directory
-RUN mkdir -p /local-ros2
-WORKDIR /local-ros2
+RUN mkdir -p /opt/share/workspace
+WORKDIR /opt/share/workspace
 
 # Copy the project files (uncomment this if you want to copy your project)
-# COPY . /local-ros2/
+# COPY . /opt/share/workspace
 
 # Set the default command to source ROS2 and start bash
 CMD ["bash", "-c", "source /opt/ros/foxy/setup.bash && bash"]
