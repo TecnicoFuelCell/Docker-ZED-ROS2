@@ -5,6 +5,11 @@ FROM ubuntu:20.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Lisbon
 
+# --- ENABLE NVIDIA GRAPHICS CAPABILITIES ---
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics,display
+# ------------------------------------------------
+
 # Update package lists and install basic dependencies
 RUN apt-get update && apt-get install -y \
     curl \
@@ -21,6 +26,11 @@ RUN apt-get update && apt-get install -y \
     libopencv-dev \
     libeigen3-dev \
     libgl1-mesa-glx \
+    libglvnd0 \
+    libgl1 \
+    libglx0 \
+    libegl1 \
+    mesa-utils \
     libglib2.0-0 \
     vim \
     nano \
@@ -32,8 +42,15 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o 
 RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
 
 # Update package lists and install ROS2 Foxy
+# (Added ros-foxy-gazebo-ros-pkgs based on your earlier error)
 RUN apt-get update && apt-get install -y \
     ros-foxy-desktop \
+    ros-foxy-gazebo-ros-pkgs \
+    ros-foxy-xacro \
+    ros-foxy-ros2-control \
+    ros-foxy-ros2-controllers \
+    ros-foxy-gazebo-ros2-control \
+    ros-foxy-robot-localization \
     python3-rosdep \
     python3-colcon-common-extensions \
     python3-vcstool \
@@ -82,7 +99,9 @@ RUN pip3 install --ignore-installed psutil \
     scikit-learn \
     filterpy \
     gtsam \
-    ultralytics
+    ultralytics \
+    casadi \
+    bezier
 
 # Set up ROS2 environment
 RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
