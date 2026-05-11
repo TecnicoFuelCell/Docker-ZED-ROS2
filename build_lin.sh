@@ -66,8 +66,15 @@ if [[ "$use_gui" =~ ^[Yy]$ ]]; then
   trap 'xhost -local:docker >/dev/null' EXIT
   run_args+=(
     -e "DISPLAY=$DISPLAY"
+    -e "QT_X11_NO_MITSHM=1"
+    -e "__NV_PRIME_RENDER_OFFLOAD=1"
+    -e "__GLX_VENDOR_LIBRARY_NAME=nvidia"
     -v "/tmp/.X11-unix:/tmp/.X11-unix:rw"
   )
+
+  if [ -d "/dev/dri" ]; then
+    run_args+=(--device /dev/dri:/dev/dri)
+  fi
 fi
 
 echo "Starting container: $container_name"
