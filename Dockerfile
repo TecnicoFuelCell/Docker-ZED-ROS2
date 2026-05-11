@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y \
     vim \
     nano \
     iproute2 \
+    tmux \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up ROS2 repository
@@ -42,7 +43,8 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o 
 RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
 
 # Update package lists and install ROS2 Foxy
-# (Added ros-foxy-gazebo-ros-pkgs based on your earlier error)
+# rosbridge suite for foxglove (exposing websockets)
+# ros-foxy-gazebo-ros-pkgs for gazebo-ros integration
 RUN apt-get update && apt-get install -y \
     ros-foxy-desktop \
     ros-foxy-gazebo-ros-pkgs \
@@ -51,6 +53,7 @@ RUN apt-get update && apt-get install -y \
     ros-foxy-ros2-controllers \
     ros-foxy-gazebo-ros2-control \
     ros-foxy-robot-localization \
+    ros-foxy-rosbridge-suite \
     python3-rosdep \
     python3-colcon-common-extensions \
     python3-vcstool \
@@ -110,8 +113,14 @@ RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
 RUN mkdir -p /opt/share/workspace
 WORKDIR /opt/share/workspace
 
+
 # Copy the project files (uncomment this if you want to copy your project)
 # COPY . /opt/share/workspace
+
+# append things from .bashrc.example to .bashrc
+COPY .bashrc.example /tmp/.bashrc.example
+RUN cat /tmp/.bashrc.example >> ~/.bashrc
+
 
 # Set the default command to source ROS2 and start bash
 CMD ["bash", "-c", "source /opt/ros/foxy/setup.bash && bash"]
