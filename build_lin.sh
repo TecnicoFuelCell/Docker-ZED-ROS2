@@ -36,6 +36,9 @@ fi
 read -rp "Enable GPU passthrough? (${default_gpu}/n): " use_gpu
 use_gpu="${use_gpu:-$default_gpu}"
 
+read -rp "Privilege the container (for hardware access)? (y/N): " use_privileged
+use_privileged="${use_privileged:-N}"
+
 if [[ ! -d "$workspace" ]]; then
   echo "Error: workspace path does not exist: $workspace"
   exit 1
@@ -55,10 +58,16 @@ run_args=(
   --name "$container_name"
   --network host
   -v "$workspace:/opt/share/workspace"
+  --device /dev/ttyACM*
 )
 
 if [[ "$use_gpu" =~ ^[Yy]$ ]]; then
   run_args+=(--gpus all)
+fi
+
+if [[ "$use_privileged" =~ ^[Yy]$ ]]; then
+  run_args+=(--privileged)
+  run_args+=(-v "/dev:/dev")
 fi
 
 if [[ "$use_gui" =~ ^[Yy]$ ]]; then
