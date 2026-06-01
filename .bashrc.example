@@ -1,0 +1,13 @@
+foxglove_launch() {
+ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+}
+
+source install/setup.bash
+
+pipeline_with_logs() {
+ros2 launch what_could_go_wrong pipeline_launch.xml |& tee "resources/logs/$(date +'%Y-%m-%d-%H-%M').log"
+}
+
+car_with_logs() {
+ros2 launch what_could_go_wrong car_launch.xml |& tee "resources/logs/$(date +'%Y-%m-%d-%H-%M').log"
+}
