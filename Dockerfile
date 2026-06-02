@@ -115,10 +115,22 @@ RUN apt-get update && apt-get install -y \
 
 # build torchvision; --depth 1 does a shallow clone to avoid downloading the whole history which is super slow
 WORKDIR /tmp
+# RUN git clone --progress --depth 1 --branch v0.16.0 https://github.com/pytorch/vision.git && \
+#     cd vision && \
+#     python3 setup.py install --user && \
+#     cd .. && rm -rf vision
+
+# build torchvision from source with CUDA ops for Jetson Orin
+ENV FORCE_CUDA=1
+ENV TORCH_CUDA_ARCH_LIST="8.7"
+ENV BUILD_VERSION=0.16.0
+
+WORKDIR /tmp
 RUN git clone --progress --depth 1 --branch v0.16.0 https://github.com/pytorch/vision.git && \
     cd vision && \
-    python3 setup.py install --user && \
-    cd .. && rm -rf vision
+    python3 -m pip install --no-deps --no-build-isolation -v . && \
+    cd .. && rm -rf vision && \
+    rm -rf /root/.local/lib/python3.8/site-packages/torchvision*
 
 RUN python3 -m pip install --upgrade pip wheel && \
     python3 -m pip install bezier==2020.1.14 && \
@@ -132,7 +144,7 @@ RUN python3 -m pip install --upgrade pip wheel && \
     seaborn \
     polars \
     ultralytics-thop && \
-    python3 -m pip install --no-deps "ultralytics>=8.3,<8.4"
+    python3 -m pip install --no-deps "ultralytics==8.4"
 
 # foxglove (move above if you rebuild the whole image, here because of layer caching)
 RUN apt-get install -y \
@@ -144,7 +156,8 @@ RUN apt-get install -y \
     ros-foxy-compressed-depth-image-transport \
     ros-foxy-compressed-image-transport \
     ros-foxy-image-transport-plugins \
-    ros-foxy-theora-image-transport
+    ros-foxy-theora-image-transport \
+    ros-foxy-xacro
 
 # Create a workspace directory
 RUN mkdir -p /opt/share/workspace
