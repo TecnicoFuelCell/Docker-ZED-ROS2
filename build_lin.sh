@@ -50,7 +50,7 @@ if [ $? -eq 0 ]; then
         --network host \
         -e DISPLAY=$DISPLAY \
         -e NVIDIA_VISIBLE_DEVICES=all \
-        -e NVIDIA_DRIVER_CAPABILITIES=graphics,utility,video \
+        -e NVIDIA_DRIVER_CAPABILITIES=all \
         -e XDG_RUNTIME_DIR=/tmp/runtime-root \
         -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
         -v /tmp:/tmp:rw \
