@@ -1,5 +1,5 @@
-# Use Ubuntu 20.04 as base image (required for ROS2 Foxy)
-FROM ubuntu:20.04
+# Use Ubuntu 24.04 as base image (required for ROS2 Jazzy)
+FROM ubuntu:24.04
 
 # Set environment variables to avoid interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -25,7 +25,6 @@ RUN apt-get update && apt-get install -y \
     python3-opencv \
     libopencv-dev \
     libeigen3-dev \
-    libgl1-mesa-glx \
     libglvnd0 \
     libgl1 \
     libglx0 \
@@ -42,26 +41,27 @@ RUN apt-get update && apt-get install -y \
 RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
 RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
 
-# Update package lists and install ROS2 Foxy
+# Update package lists and install ROS2 Jazzy
+# ros-jazzy-ros-gz: official ROS<->Gazebo Harmonic bridge (replaces gazebo-ros-pkgs)
+# ros-jazzy-gz-ros2-control: Gazebo Harmonic <-> ros2_control integration (replaces gazebo-ros2-control)
 # rosbridge suite for foxglove (exposing websockets)
-# ros-foxy-gazebo-ros-pkgs for gazebo-ros integration
 RUN apt-get update && apt-get install -y \
-    ros-foxy-desktop \
-    ros-foxy-gazebo-ros-pkgs \
-    ros-foxy-xacro \
-    ros-foxy-ros2-control \
-    ros-foxy-ros2-controllers \
-    ros-foxy-gazebo-ros2-control \
-    ros-foxy-robot-localization \
-    ros-foxy-rosbridge-suite \
+    ros-jazzy-desktop \
+    ros-jazzy-ros-gz \
+    ros-jazzy-xacro \
+    ros-jazzy-ros2-control \
+    ros-jazzy-ros2-controllers \
+    ros-jazzy-gz-ros2-control \
+    ros-jazzy-robot-localization \
+    ros-jazzy-rosbridge-suite \
     python3-rosdep \
     python3-colcon-common-extensions \
     python3-vcstool \
-    ros-foxy-geometry-msgs \
-    ros-foxy-sensor-msgs \
-    ros-foxy-std-msgs \
-    ros-foxy-nav-msgs \
-    ros-foxy-nmea-msgs \
+    ros-jazzy-geometry-msgs \
+    ros-jazzy-sensor-msgs \
+    ros-jazzy-std-msgs \
+    ros-jazzy-nav-msgs \
+    ros-jazzy-nmea-msgs \
     && rm -rf /var/lib/apt/lists/*
 
 # Initialize rosdep
@@ -95,24 +95,24 @@ RUN git clone --branch 4.2.0 --depth 1 https://github.com/borglab/gtsam.git && \
     ldconfig
 
 # Install Python libraries
-RUN pip3 install --upgrade pip
-RUN pip3 install --ignore-installed psutil \
+RUN pip3 install --upgrade --ignore-installed pip --break-system-packages
+RUN pip3 install --break-system-packages "setuptools<81" wheel
+RUN pip3 install --ignore-installed --break-system-packages psutil \
     numpy \
     transforms3d \
     scikit-learn \
     filterpy \
     gtsam \
     ultralytics \
-    casadi \
-    bezier
+    casadi
+RUN pip3 install --break-system-packages --no-build-isolation --ignore-installed bezier
 
 # Set up ROS2 environment
-RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
+RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
 
 # Create a workspace directory
 RUN mkdir -p /opt/share/workspace
 WORKDIR /opt/share/workspace
-
 
 # Copy the project files (uncomment this if you want to copy your project)
 # COPY . /opt/share/workspace
@@ -121,6 +121,5 @@ WORKDIR /opt/share/workspace
 COPY .bashrc.example /tmp/.bashrc.example
 RUN cat /tmp/.bashrc.example >> ~/.bashrc
 
-
 # Set the default command to source ROS2 and start bash
-CMD ["bash", "-c", "source /opt/ros/foxy/setup.bash && bash"]
+CMD ["bash", "-c", "source /opt/ros/jazzy/setup.bash && bash"]

@@ -1,5 +1,27 @@
 foxglove_launch() {
-ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+    ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+}
+
+# --- GPU rendering check ---
+gpu-check() {
+    echo "Checking OpenGL renderer..."
+    if command -v glxinfo >/dev/null 2>&1; then
+        renderer=$(glxinfo | grep "OpenGL renderer" | head -n 1)
+        echo "$renderer"
+        if echo "$renderer" | grep -qi "llvmpipe"; then
+            echo "⚠️  Software rendering (CPU) — GPU is NOT being used."
+        else
+            echo "✅ Hardware-accelerated rendering detected."
+        fi
+    else
+        echo "❌ glxinfo not found (mesa-utils not installed?)"
+    fi
+
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        echo ""
+        echo "NVIDIA driver status:"
+        nvidia-smi --query-gpu=name,driver_version,utilization.gpu --format=csv,noheader
+    fi
 }
 
 source install/setup.bash
