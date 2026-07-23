@@ -1,126 +1,75 @@
-# Use Ubuntu 20.04 as base image (required for ROS2 Foxy)
-FROM ubuntu:20.04
+# =============================================================================
+# Dockerfile - ros2_ws (ROS 2 Jazzy / Ubuntu 24.04 / Python 3.12)
+# =============================================================================
 
-# Set environment variables to avoid interactive prompts during installation
+FROM osrf/ros:jazzy-desktop
+
 ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=Europe/Lisbon
+ENV ROS_DISTRO=jazzy
+SHELL ["/bin/bash", "-c"]
 
-# --- ENABLE NVIDIA GRAPHICS CAPABILITIES ---
-ENV NVIDIA_VISIBLE_DEVICES=all
-ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics,display
-# ------------------------------------------------
-
-# Update package lists and install basic dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    gnupg2 \
-    lsb-release \
-    wget \
-    software-properties-common \
-    build-essential \
-    git \
-    python3 \
-    python3-pip \
-    python3-dev \
-    python3-opencv \
-    libopencv-dev \
-    libeigen3-dev \
-    libgl1-mesa-glx \
-    libglvnd0 \
-    libgl1 \
-    libglx0 \
-    libegl1 \
-    mesa-utils \
-    libglib2.0-0 \
-    vim \
-    nano \
-    iproute2 \
-    tmux \
+# -----------------------------------------------------------------------------
+# 1. Dependências de sistema base (Eigen 3.4 já vem no Ubuntu 24.04)
+# -----------------------------------------------------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake git wget curl unzip \
+        libboost-all-dev libtbb-dev libopencv-dev \
+        python3-pip python3-colcon-common-extensions python3-rosdep python3-vcstool \
+        libeigen3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up ROS2 repository
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+# -----------------------------------------------------------------------------
+# 2. GTSAM a partir do source, instalado em /usr/local
+# -----------------------------------------------------------------------------
+RUN git clone --branch 4.2 --depth 1 https://github.com/borglab/gtsam.git /tmp/gtsam \
+    && cd /tmp/gtsam && mkdir build && cd build \
+    && cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DGTSAM_USE_SYSTEM_EIGEN=ON \
+        -DGTSAM_BUILD_TESTS=OFF \
+        -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
+        -DGTSAM_WITH_TBB=ON \
+    && make -j"$(nproc)" \
+    && make install \
+    && ldconfig \
+    && rm -rf /tmp/gtsam
 
-# Update package lists and install ROS2 Foxy
-# rosbridge suite for foxglove (exposing websockets)
-# ros-foxy-gazebo-ros-pkgs for gazebo-ros integration
-RUN apt-get update && apt-get install -y \
-    ros-foxy-desktop \
-    ros-foxy-gazebo-ros-pkgs \
-    ros-foxy-xacro \
-    ros-foxy-ros2-control \
-    ros-foxy-ros2-controllers \
-    ros-foxy-gazebo-ros2-control \
-    ros-foxy-robot-localization \
-    ros-foxy-rosbridge-suite \
-    python3-rosdep \
-    python3-colcon-common-extensions \
-    python3-vcstool \
-    ros-foxy-geometry-msgs \
-    ros-foxy-sensor-msgs \
-    ros-foxy-std-msgs \
-    ros-foxy-nav-msgs \
-    ros-foxy-nmea-msgs \
-    && rm -rf /var/lib/apt/lists/*
-
-# Initialize rosdep
-RUN rosdep init && rosdep update
-
-# Install Eigen from source
-WORKDIR /tmp
-RUN wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz && \
-    tar -xzf eigen-3.4.0.tar.gz && \
-    cd eigen-3.4.0 && \
-    mkdir build && cd build && \
-    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
-    make -j$(nproc) && \
-    make install
-
-# Install GTSAM
-WORKDIR /tmp
-RUN git clone --branch 4.2.0 --depth 1 https://github.com/borglab/gtsam.git && \
-    cd gtsam && \
-    mkdir build && cd build && \
-    cmake .. \
-      -DGTSAM_BUILD_EXAMPLES=OFF \
-      -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
-      -DGTSAM_BUILD_TESTS=OFF \
-      -DGTSAM_BUILD_UNSTABLE=OFF \
-      -DGTSAM_USE_SYSTEM_EIGEN=ON \
-      -DGTSAM_WITH_TBB=OFF \
-      -DCMAKE_INSTALL_PREFIX=/usr/local && \
-    make -j$(nproc) && \
-    make install && \
-    ldconfig
-
-# Install Python libraries
-RUN pip3 install --upgrade pip
-RUN pip3 install --ignore-installed psutil \
-    numpy \
-    transforms3d \
-    scikit-learn \
-    filterpy \
-    gtsam \
-    ultralytics \
-    casadi \
-    bezier
-
-# Set up ROS2 environment
-RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
-
-# Create a workspace directory
-RUN mkdir -p /opt/share/workspace
+# -----------------------------------------------------------------------------
+# 3. Dependências ROS declaradas nos package.xml
+# -----------------------------------------------------------------------------
 WORKDIR /opt/share/workspace
+COPY ros2_ws/src ./src
+COPY ros2_ws/description ./description
 
+RUN apt-get update \
+    && rosdep update \
+    && rosdep install --from-paths src --ignore-src -r -y \
+        --skip-keys "gtsam" \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy the project files (uncomment this if you want to copy your project)
-# COPY . /opt/share/workspace
+# -----------------------------------------------------------------------------
+# 4. Dependências Python (Python 3.12 nativo do Jazzy aceita todas)
+# -----------------------------------------------------------------------------
+RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed \
+        casadi \
+        bezier \
+        transforms3d \
+        rosbags \
+        ultralytics \
+        torch --extra-index-url https://download.pytorch.org/whl/cpu
 
-# append things from .bashrc.example to .bashrc
-COPY .bashrc.example /tmp/.bashrc.example
-RUN cat /tmp/.bashrc.example >> ~/.bashrc
+# -----------------------------------------------------------------------------
+# 5. Build do workspace
+# -----------------------------------------------------------------------------
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
+    && colcon build --symlink-install
 
+# -----------------------------------------------------------------------------
+# 6. Entrypoint
+# -----------------------------------------------------------------------------
+RUN printf '#!/bin/bash\nset -e\nsource /opt/ros/jazzy/setup.bash\nif [ -f /opt/share/workspace/install/setup.bash ]; then\n    source /opt/share/workspace/install/setup.bash\nfi\nexec "$@"\n' > /ros_entrypoint.sh \
+    && chmod +x /ros_entrypoint.sh
 
-# Set the default command to source ROS2 and start bash
-CMD ["bash", "-c", "source /opt/ros/foxy/setup.bash && bash"]
+ENTRYPOINT ["/ros_entrypoint.sh"]
+CMD ["bash"]

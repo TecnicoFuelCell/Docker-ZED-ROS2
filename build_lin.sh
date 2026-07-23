@@ -4,11 +4,10 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 current_dir="$PWD"
 
-# defaults (fallback)
-default_image="local-simple-env"
-default_container="local-simple-env"
-
-default_workspace="$(realpath -m "$current_dir/../Autonomous_Systems/ros2_ws")"
+# defaults (fallback) - ALTERADOS PARA O SEU PROJETO
+default_image="autonomnom_ws"
+default_container="autonomnom_container"
+default_workspace="$(realpath -m "$current_dir/ros2_ws")"
 
 read -rp "Docker image name [$default_image]: " image_name
 image_name="${image_name:-$default_image}"
@@ -25,8 +24,8 @@ else
   workspace="$(realpath -m "$current_dir/$workspace_input")"
 fi
 
-read -rp "Enable GUI/X11 forwarding? (y/N): " use_gui
-use_gui="${use_gui:-N}"
+read -rp "Enable GUI/X11 forwarding? (Y/n): " use_gui
+use_gui="${use_gui:-Y}"
 
 default_gpu="N"
 if [[ "$image_name" =~ cuda ]]; then
@@ -38,6 +37,9 @@ use_gpu="${use_gpu:-$default_gpu}"
 
 read -rp "Privilege the container (for hardware access)? (y/N): " use_privileged
 use_privileged="${use_privileged:-N}"
+
+read -rp "Connect USB devices (/dev/ttyACM*)? (y/N): " use_usb
+use_usb="${use_usb:-N}"
 
 if [[ ! -d "$workspace" ]]; then
   echo "Error: workspace path does not exist: $workspace"
@@ -53,13 +55,16 @@ else
 fi
 
 run_args=(
-  #--rm
   -it
   --name "$container_name"
   --network host
-  -v "$workspace:/opt/share/workspace"
-  --device /dev/ttyACM*
+  # MUDANÇA AQUI: Monta apenas o 'src' para não apagar o 'install' do Docker
+  -v "$workspace/src:/opt/share/workspace/src"
 )
+
+if [[ "$use_usb" =~ ^[Yy]$ ]]; then
+  run_args+=(--device /dev/ttyACM*)
+fi
 
 if [[ "$use_gpu" =~ ^[Yy]$ ]]; then
   run_args+=(--gpus all)
