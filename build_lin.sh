@@ -7,7 +7,7 @@ current_dir="$PWD"
 # defaults (fallback) - ALTERADOS PARA O SEU PROJETO
 default_image="autonomnom_ws"
 default_container="autonomnom_container"
-default_workspace="$(realpath -m "$current_dir/ros2_ws")"
+default_workspace="$(realpath -m "$current_dir/../Autonomous_Systems/ros2_ws")"
 
 read -rp "Docker image name [$default_image]: " image_name
 image_name="${image_name:-$default_image}"
