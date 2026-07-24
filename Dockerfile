@@ -39,8 +39,8 @@ RUN git clone --branch 4.2 --depth 1 https://github.com/borglab/gtsam.git /tmp/g
 # 3. Dependências ROS declaradas nos package.xml
 # -----------------------------------------------------------------------------
 WORKDIR /opt/share/workspace
-COPY ros2_ws/src ./src
-COPY ros2_ws/description ./description
+COPY src ./src
+COPY description ./description
 
 RUN apt-get update \
     && rosdep update \
