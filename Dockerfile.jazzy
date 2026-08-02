@@ -44,6 +44,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0t64 \
     libgtsam-dev \
     libopencv-dev \
+    cmake \
+    pkg-config \
+    libopenblas-dev \
+    libjpeg-dev \
+    zlib1g-dev \
     && locale-gen en_US en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -92,13 +97,39 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN rosdep init || true
 RUN rosdep update
 
-# Keep NumPy on Ubuntu/ROS 1.26 for ABI compatibility. The old Foxy pin
-# bezier==2020.1.14 does not support Python 3.12, so install the current wheel
-# without allowing it to upgrade NumPy to 2.x. Avoid upgrading Debian's pip and
-# wheel packages in-place; Ubuntu 24.04's pip is sufficient for these wheels.
+# NVIDIA userspace math libraries the aarch64 PyTorch wheel links against
+# (NVPL for CPU BLAS/LAPACK, cuDSS for the sparse solver). Base Ubuntu doesn't
+# ship these, and community reports indicate a fresh JetPack 7.2 flash doesn't
+# either -- torch fails to *import* (not just fails on CUDA) without them.
+# This does not install the CUDA toolkit/nvcc itself: this image is built for
+# inference only and is expected to run via the NVIDIA Container Runtime on
+# the Jetson (e.g. `docker run --runtime nvidia ...`), which mounts the host's
+# CUDA driver, cuDNN, and TensorRT userspace libraries into the container.
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-keyring_1.1-1_all.deb \
+      -O /tmp/cuda-keyring.deb && \
+    dpkg -i /tmp/cuda-keyring.deb && \
+    rm /tmp/cuda-keyring.deb && \
+    apt-get update && apt-get install -y --no-install-recommends \
+      nvpl \
+      libcudss0-cuda-13 \
+    && echo "/usr/lib/aarch64-linux-gnu/libcudss/13" > /etc/ld.so.conf.d/cudss.conf \
+    && ldconfig \
+    && rm -rf /var/lib/apt/lists/*
+
+# bezier==2020.1.14 (the old Foxy-era pin) does not support Python 3.12, so
+# install the current wheel with --no-deps first so it can't drag NumPy along.
+# NumPy is pinned to the 2.0.x/2.2.x range the JetPack 7.2 cu132 PyTorch wheels
+# below were built and tested against; NumPy 2.x remains ABI-compatible with
+# the apt-provided python3-opencv/python3-scipy stack (built against NumPy 1.x
+# headers). Avoid upgrading Debian's pip and wheel packages in-place; Ubuntu
+# 24.04's pip is sufficient for these wheels.
+# --ignore-installed is required because python3-opencv/python3-scipy pulled
+# in Debian's python3-numpy (1.26.4) as an apt dependency; apt-installed
+# Python packages have no pip RECORD file, so pip can't safely "uninstall"
+# it before upgrading and errors out without this flag.
 RUN python3 -m pip install --break-system-packages --no-deps bezier==2024.6.20 && \
-    python3 -m pip install --break-system-packages \
-      numpy \
+    python3 -m pip install --break-system-packages --ignore-installed \
+      "numpy>=2.0,<2.3" \
       casadi \
       pandas \
       polars \
@@ -106,11 +137,34 @@ RUN python3 -m pip install --break-system-packages --no-deps bezier==2024.6.20 &
       pyserial \
       seaborn \
       tqdm \
-      transforms3d \
+      transforms3d
 
-# Torch, torchvision, ultralytics, and ultralytics-thop are intentionally
-# deferred. Generic PyPI Torch for Python 3.12 tries to pull CUDA 13 wheels,
-# which is not an acceptable JetPack 5/R35 inference stack.
+# PyTorch + torchvision for JetPack 7.2 / CUDA 13.2 / Jetson Orin (sm_87) /
+# Python 3.12. NVIDIA has not published an official Jetson wheel or install
+# doc for this combination yet; as of writing this is a community-documented,
+# prerelease-only path (see https://github.com/iuliaferoli/jetson-jp7.2-install).
+# A plain "pip install torch" resolves a datacenter build (sm_100/sm_110)
+# that imports fine and reports torch.cuda.is_available() == True, but fails
+# with "no kernel image is available" on the first real op on Orin. --pre is
+# required or pip won't see the cu132 wheels at all. --extra-index-url (not
+# --index-url) keeps other deps resolving from PyPI as normal.
+# If your board reports a different CUDA point release (check `nvcc --version`
+# or `dpkg -l | grep cuda-toolkit` on the host), swap cu132 for the matching
+# cuNNN suffix in the URL below.
+RUN python3 -m pip install --break-system-packages --pre \
+      torch \
+      torchvision \
+      --extra-index-url https://download.pytorch.org/whl/cu132
+
+# Ultralytics (YOLO). Installed --no-deps so it can't silently pull in a
+# generic PyPI torch/torchvision/opencv build and overwrite the Jetson-specific
+# ones installed above. Its other runtime deps (numpy, matplotlib, opencv,
+# pillow, pyyaml, requests, scipy, tqdm, psutil, py-cpuinfo, pandas, seaborn)
+# are already satisfied by the apt/pip packages above; ultralytics-thop is the
+# one that isn't, so it's installed alongside.
+RUN python3 -m pip install --break-system-packages --no-deps \
+      ultralytics \
+      ultralytics-thop
 
 RUN mkdir -p /opt/share/workspace
 WORKDIR /opt/share/workspace
