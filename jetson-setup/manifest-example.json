@@ -1,0 +1,49 @@
+{
+  "_comment": "Declares the desired Jetson environment. Replace member1/member2 with real team member usernames. See README.md for the full schema.",
+  "groups": [
+    {"name": "tfc-autonomous", "state": "present"},
+    {"name": "sudo", "state": "present"},
+    {"name": "docker", "state": "present"}
+  ],
+  "users": [
+    {
+      "name": "tfcadmin",
+      "groups": ["sudo", "docker", "tfc-autonomous"],
+      "home": "/home/tfcadmin",
+      "shell": "/bin/bash",
+      "state": "present"
+    },
+    {
+      "name": "member1",
+      "groups": ["docker", "tfc-autonomous"],
+      "home": "/home/member1",
+      "shell": "/bin/bash",
+      "state": "present"
+    },
+    {
+      "name": "member2",
+      "groups": ["docker", "tfc-autonomous"],
+      "home": "/home/member2",
+      "shell": "/bin/bash",
+      "state": "present"
+    }
+  ],
+  "directories": [
+    {"path": "/opt/tfc-autonomous", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2750", "state": "present"},
+    {"path": "/opt/tfc-autonomous/repositories", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2750", "state": "present"},
+    {"path": "/opt/tfc-autonomous/data", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"path": "/opt/tfc-autonomous/data/rosbags", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"path": "/opt/tfc-autonomous/data/logs", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"path": "/opt/tfc-autonomous/data/models", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"path": "/opt/tfc-autonomous/data/snapshots", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"path": "/opt/tfc-autonomous/config", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"path": "/opt/tfc-autonomous/config/params", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"path": "/opt/tfc-autonomous/config/camera", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"path": "/opt/tfc-autonomous/config/maps", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"path": "/opt/tfc-autonomous/config/vesc", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"}
+  ],
+  "sudoers": [
+    "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/git",
+    "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/vim"
+  ]
+}
