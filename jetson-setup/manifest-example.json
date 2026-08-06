@@ -11,6 +11,7 @@
       "groups": ["sudo", "docker", "tfc-autonomous"],
       "home": "/home/tfcadmin",
       "shell": "/bin/bash",
+      "umask": "0027",
       "state": "present"
     },
     {
@@ -18,6 +19,7 @@
       "groups": ["docker", "tfc-autonomous"],
       "home": "/home/member1",
       "shell": "/bin/bash",
+      "umask": "0002",
       "state": "present"
     },
     {
@@ -25,6 +27,7 @@
       "groups": ["docker", "tfc-autonomous"],
       "home": "/home/member2",
       "shell": "/bin/bash",
+      "umask": "0002",
       "state": "present"
     }
   ],
