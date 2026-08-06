@@ -50,6 +50,7 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
       "groups": ["docker", "tfc-autonomous"],
       "home": "/home/member1",
       "shell": "/bin/bash",
+      "umask": "0002",
       "state": "present"
     }
   ],
@@ -73,8 +74,24 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
   this manifest (declared entries are applied first).
 - `users[].groups` are supplementary memberships (the user's primary group is the
   username by default). Members are added to `docker` so they can use the container.
+- `users[].umask` (optional, 4-digit octal) sets that user's file-creation mask:
+  - via `Defaults><user> umask=<umask>` in the generated sudoers file (applies to
+    everything run as that user, e.g. `sudo -u tfcadmin git clone …`), and
+  - via a line in the generated `/etc/profile.d/tfc-autonomous-umask.sh`
+    (applies to interactive logins as that user).
+  Users without `umask` keep the system default. Example: `tfcadmin` with `0027`
+  creates files `0640`/dirs `0750` (group read, no world), so repos under
+  `/opt/tfc-autonomous/repositories` stay non-group-writable even though the
+  directory is setgid to `tfc-autonomous`.
 - `sudoers` is a fully generated file (`/etc/sudoers.d/tfc-autonomous`): the file
-  always equals the rule list. An empty list removes the file.
+  equals the manifest rule list **plus** the auto-generated `Defaults>user
+  umask=...` lines above it. An empty rule list with no umasks removes the file.
+  Do **not** add `Defaults>… umask=…` lines yourself — they are derived.
+- Declaring a directory `absent` removes it **and everything below it** (recursive).
+  The dry-run and run output list every child entry that will be removed
+  (`also removing: <path>`). Because of that, a directory cannot be declared
+  `absent` while one of its descendants is declared `present` — the manifest is
+  rejected with an error telling you to mark the children `absent` too.
 - Users/groups declared `absent` are removed. Removing a user keeps the home
   directory unless `"remove_home": true` is set. A removed home **cannot** be
   restored by rollback.
@@ -154,6 +171,7 @@ reaches the desired state.
 
 ## Scope
 
-This script handles users, groups, directories, permissions and sudoers only.
+This script handles users, groups, directories, permissions, sudoers rules and
+per-user umasks (sudoers `Defaults` + a generated `/etc/profile.d/` snippet).
 Cloning repositories, building/starting the container and generating
 `/opt/tfc-autonomous/config/tfc_paths.env` from the template are separate steps.
