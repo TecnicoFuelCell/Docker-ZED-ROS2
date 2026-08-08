@@ -1,0 +1,43 @@
+# Declarative replacement for build_lin.sh — start with:
+#
+#   docker compose up -d          # canonical workspace (default)
+#   docker compose --env-file ~/.config/tfc/compose.env up -d   # a member's own clone
+#
+# TFC_PROJECT / TFC_CONTAINER_NAME make per-member instances collision-free
+# (see JETSON_ORGANIZATION.md). TFC_WS overrides the mounted workspace.
+
+name: ${TFC_PROJECT:-tfc-autonomous}
+
+services:
+  tfc-autonomous:
+    image: jetson-orin-ros2-jazzy
+    container_name: ${TFC_CONTAINER_NAME:-tfc-autonomous}
+    privileged: true
+    runtime: nvidia
+    restart: unless-stopped
+    network_mode: host
+    stdin_open: true
+    tty: true
+    env_file: /opt/tfc-autonomous/config/tfc_paths.env
+    environment:
+      DISPLAY: ${DISPLAY:-}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+      XDG_RUNTIME_DIR: /tmp/runtime-root
+      XAUTHORITY: /root/.Xauthority
+    volumes:
+      - ${TFC_WS:-/opt/tfc-autonomous/repositories/Autonomous_Systems/ros2_ws}:/workspace
+      - /opt/tfc-autonomous:/opt/tfc-autonomous
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /tmp:/tmp:rw
+      - /var/nvidia/nvcam/settings:/var/nvidia/nvcam/settings:ro
+      - /etc/systemd/system/zed_x_daemon.service:/etc/systemd/system/zed_x_daemon.service:ro
+      - ${HOME:-/root}/.Xauthority:/root/.Xauthority
+      - /var/run/argus-daemon:/var/run/argus-daemon:rw
+    devices:
+      - /dev/video0
+      - /dev/video1
+      - /dev/dri:/dev/dri
+      - /dev:/dev
+    working_dir: /workspace
+    command: bash -lc "source /opt/ros/jazzy/setup.bash && source install/setup.bash && exec bash"

@@ -51,13 +51,25 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
       "home": "/home/member1",
       "shell": "/bin/bash",
       "umask": "0002",
+      "default_password": "changeme",
+      "gnome_remote_desktop": {"mode": "multi-user", "desktop_sharing": true},
       "state": "present"
     }
   ],
   "directories": [
-    {"path": "/opt/tfc-autonomous/data/rosbags", "owner": "tfcadmin",
-     "group": "tfc-autonomous", "mode": "2775", "state": "present"}
+    {"name": "tfc_root", "path": "/opt/tfc-autonomous", "owner": "tfcadmin",
+     "group": "tfc-autonomous", "mode": "2750", "state": "present"}
   ],
+  "gnome_remote_desktop_system": {
+    "tls": {"generate": true},
+    "credentials": {"username": "tfc-rdp", "password": "changeme"}
+  },
+  "tfc_paths_env": {
+    "template": "${tfc_root}/repositories/Docker-ZED-ROS2/env/tfc_paths.env",
+    "dest": "${tfc_root}/config/tfc_paths.env",
+    "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "0644",
+    "substitutions": {"TFC_ROOT": "${tfc_root}"}
+  },
   "sudoers": [
     "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/git"
   ]
@@ -72,8 +84,20 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
   or `2775` (setgid + owner/group rwx). The setgid bit is enforced exactly.
 - `owner`/`group` may name users/groups already on the system **or** declared in
   this manifest (declared entries are applied first).
+- `directories[].name` (optional) gives that directory a **path name**. Any string
+  value anywhere in the manifest may reference it as `${name}`, composed inline
+  (e.g. `"path": "${tfc_root}/repositories"`, `"dest": "${tfc_config}/tfc_paths.env"`).
+  References may chain to other names. Unknown names, duplicate names and reference
+  cycles are rejected with a message naming the offending field. `${...}` is
+  therefore reserved — literal paths must not contain it. The `name` field itself is
+  metadata and never appears in the plan output.
 - `users[].groups` are supplementary memberships (the user's primary group is the
   username by default). Members are added to `docker` so they can use the container.
+- `users[].default_password` (optional) sets the account's **initial** password
+  (applied via `chpasswd` immediately after `useradd`). It is used **only when the
+  user is created** and is never re-applied, so a member's changed password survives
+  re-runs. The manifest holds it in plaintext — keep the manifest `600` and never
+  commit real passwords; see `manifest-example.json` for the field placement.
 - `users[].umask` (optional, 4-digit octal) sets that user's file-creation mask:
   - via `Defaults><user> umask=<umask>` in the generated sudoers file (applies to
     everything run as that user, e.g. `sudo -u tfcadmin git clone …`), and
@@ -100,6 +124,55 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
   `removing: <operation>`, even without `--verbose`.
 - Removing paths in the protected set (`/`, `/opt`, `/etc`, `/usr`, `/var`, …)
   requires `--force`.
+
+### GNOME Remote Desktop (`gnome_remote_desktop` / `gnome_remote_desktop_system`)
+
+Per-member configuration lives in each user's `gnome_remote_desktop` object:
+
+- `mode` — `"multi-user"` | `"single-user"` | `"disabled"` (default `"disabled"`):
+  - **multi-user** → the member uses the system-wide *remote login*
+    (`grdctl --system` → GDM login screen, where everyone logs in with their own
+    account). The system service is machine-wide: it is enabled if **any** member
+    selects `multi-user`.
+  - **single-user** → the member gets a private *headless* session
+    (`grdctl --headless` + `gnome-remote-desktop-headless.service` +
+    `loginctl enable-linger`).
+- `desktop_sharing` (optional bool) — enables that member's per-user *desktop
+  sharing* service (shares their local GNOME session when logged in). Independent
+  of `mode`; coexists with the system remote login (port 3390).
+
+Rules enforced at validation:
+
+- `multi-user` and `single-user` **cannot be mixed across users** — the system
+  remote-login service and per-user headless sessions share RDP port 3389.
+- If any member is `multi-user`, the top-level `gnome_remote_desktop_system` object
+  is required, including `credentials` (the shared "door" credentials shown to
+  every RDP client before the GDM login screen).
+- `gnome_remote_desktop_system.tls` is either `{"generate": true}` (creates a
+  self-signed certificate via `winpr-makecert` as the `gnome-remote-desktop` user)
+  or explicit `{"cert": …, "key": …}` paths (which may use `${name}` references).
+
+Prerequisite (config-only: the script does not install a desktop): GNOME + GDM +
+`gnome-remote-desktop` + `winpr-utils` must be installed manually first. If GRD is
+configured but `grdctl` (or `winpr-makecert`, when generating) is missing, the run
+fails with a message pointing at this prerequisite. Members in `single-user` /
+`desktop_sharing` mode set their own RDP credentials afterwards
+(`grdctl [--headless] rdp set-credentials` or the GNOME Settings UI).
+
+### Runtime env file (`tfc_paths_env`)
+
+The machine's runtime paths file (the `.env` the code reads for
+`TFC_ROSBAG_DIR`, `TFC_LOG_DIR`, …) is derived from the template committed in the
+repository, not written by hand:
+
+- `template` — path to the repo's `env/tfc_paths.env` (uses `${name}` references;
+  the template ships inside the cloned repo, e.g. `Docker-ZED-ROS2`).
+- `dest` — where the runtime copy is written (e.g. `${tfc_root}/config/tfc_paths.env`).
+- `owner`, `group`, `mode` — ownership/permissions of the written file.
+- `substitutions` — a map of `KEY` → value; every `@KEY@` occurrence in the
+  template is replaced (e.g. `"TFC_ROOT": "${tfc_root}"`).
+- Idempotent: re-runs skip the write when the destination already matches. The op
+  is atomic and undoable like the sudoers file.
 
 ### Example: add a member
 
@@ -171,7 +244,14 @@ reaches the desired state.
 
 ## Scope
 
-This script handles users, groups, directories, permissions, sudoers rules and
-per-user umasks (sudoers `Defaults` + a generated `/etc/profile.d/` snippet).
-Cloning repositories, building/starting the container and generating
-`/opt/tfc-autonomous/config/tfc_paths.env` from the template are separate steps.
+This script handles users, groups, directories, permissions, sudoers rules,
+per-user umasks (sudoers `Defaults` + a generated `/etc/profile.d/` snippet),
+GNOME Remote Desktop (`grdctl` / systemd units, config-only) and the runtime
+`tfc_paths.env` (copied from the repo template with `@KEY@` values substituted).
+
+Not handled here — separate, documented steps:
+
+- Cloning repositories (private repos: each member clones with their own SSH key).
+- Building/starting the container (`docker compose`, see `Docker-ZED-ROS2/docker-compose.yml`).
+- Installing the GNOME desktop / `gnome-remote-desktop` / `winpr-utils` packages
+  (required before GRD sections can be applied).
