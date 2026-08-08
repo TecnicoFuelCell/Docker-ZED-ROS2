@@ -1,5 +1,5 @@
 {
-  "_comment": "Declares the desired Jetson environment. Replace member1/member2 with real team member usernames. See README.md for the full schema.",
+  "_comment": "Full schema example. Replace member1/member2 with real team member usernames, and replace every 'changeme' password before running. default_password sets the initial account password and is applied ONLY when the user is created; it is never re-applied. See README.md for the full schema.",
   "groups": [
     {"name": "tfc-autonomous", "state": "present"},
     {"name": "sudo", "state": "present"},
@@ -12,6 +12,7 @@
       "home": "/home/tfcadmin",
       "shell": "/bin/bash",
       "umask": "0027",
+      "default_password": "changeme",
       "state": "present"
     },
     {
@@ -20,6 +21,11 @@
       "home": "/home/member1",
       "shell": "/bin/bash",
       "umask": "0002",
+      "default_password": "changeme",
+      "gnome_remote_desktop": {
+        "mode": "multi-user",
+        "desktop_sharing": true
+      },
       "state": "present"
     },
     {
@@ -28,23 +34,40 @@
       "home": "/home/member2",
       "shell": "/bin/bash",
       "umask": "0002",
+      "default_password": "changeme",
+      "gnome_remote_desktop": {
+        "mode": "multi-user",
+        "desktop_sharing": false
+      },
       "state": "present"
     }
   ],
   "directories": [
-    {"path": "/opt/tfc-autonomous", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2750", "state": "present"},
-    {"path": "/opt/tfc-autonomous/repositories", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2750", "state": "present"},
-    {"path": "/opt/tfc-autonomous/data", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"path": "/opt/tfc-autonomous/data/rosbags", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"path": "/opt/tfc-autonomous/data/logs", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"path": "/opt/tfc-autonomous/data/models", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"path": "/opt/tfc-autonomous/data/snapshots", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"path": "/opt/tfc-autonomous/config", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"path": "/opt/tfc-autonomous/config/params", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"path": "/opt/tfc-autonomous/config/camera", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"path": "/opt/tfc-autonomous/config/maps", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"path": "/opt/tfc-autonomous/config/vesc", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"}
+    {"name": "tfc_root", "path": "/opt/tfc-autonomous", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2750", "state": "present"},
+    {"name": "tfc_repositories", "path": "${tfc_root}/repositories", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2750", "state": "present"},
+    {"name": "tfc_data", "path": "${tfc_root}/data", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_rosbags", "path": "${tfc_data}/rosbags", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_logs", "path": "${tfc_data}/logs", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_models", "path": "${tfc_data}/models", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_snapshots", "path": "${tfc_data}/snapshots", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_config", "path": "${tfc_root}/config", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_params", "path": "${tfc_config}/params", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_camera", "path": "${tfc_config}/camera", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_maps", "path": "${tfc_config}/maps", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_vesc", "path": "${tfc_config}/vesc", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"}
   ],
+  "gnome_remote_desktop_system": {
+    "tls": {"generate": true},
+    "credentials": {"username": "tfc-rdp", "password": "changeme"}
+  },
+  "tfc_paths_env": {
+    "template": "${tfc_repositories}/Docker-ZED-ROS2/env/tfc_paths.env",
+    "dest": "${tfc_config}/tfc_paths.env",
+    "owner": "tfcadmin",
+    "group": "tfc-autonomous",
+    "mode": "0644",
+    "substitutions": {"TFC_ROOT": "${tfc_root}"}
+  },
   "sudoers": [
     "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/git",
     "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/vim"
