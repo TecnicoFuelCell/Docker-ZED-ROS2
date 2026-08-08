@@ -407,13 +407,18 @@ def load_manifest(path):
     return data
 
 
-def resolve_manifest(manifest):
+def resolve_manifest(manifest, manifest_dir):
     """Resolve ${name} path references against directories[].name. Mutates in place.
 
     A directory entry may carry an optional "name"; any string value anywhere in the
     manifest may reference it as ${name}, composed inline (e.g. "${tfc_root}/repositories").
     References may chain to other references. Unknown names, duplicate names and cycles
     are reported as errors. Returns a list of error strings (empty when valid).
+
+    tfc_paths_env.template is additionally resolved: a relative value is interpreted
+    as a path inside the manifest's own repo checkout (relative to manifest_dir), so
+    the template is found wherever the repo was cloned without knowing the final
+    location.
     """
     errors = []
     names = {}
@@ -469,6 +474,12 @@ def resolve_manifest(manifest):
         return node
 
     walk(manifest, "manifest")
+
+    tfc_env = manifest.get("tfc_paths_env")
+    if isinstance(tfc_env, dict):
+        template = tfc_env.get("template")
+        if isinstance(template, str) and not template.startswith("/"):
+            tfc_env["template"] = os.path.normpath(os.path.join(manifest_dir, template))
     return errors
 
 
@@ -1357,7 +1368,8 @@ def main():
 
     try:
         manifest = load_manifest(args.manifest)
-        errors = resolve_manifest(manifest)
+        manifest_dir = os.path.dirname(os.path.abspath(args.manifest))
+        errors = resolve_manifest(manifest, manifest_dir)
         if errors:
             for e in errors:
                 log.error("validation: " + e)

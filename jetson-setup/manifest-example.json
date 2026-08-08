@@ -61,7 +61,7 @@
     "credentials": {"username": "tfc-rdp", "password": "changeme"}
   },
   "tfc_paths_env": {
-    "template": "${tfc_repositories}/Docker-ZED-ROS2/env/tfc_paths.env",
+    "template": "../env/tfc_paths.env",
     "dest": "${tfc_config}/tfc_paths.env",
     "owner": "tfcadmin",
     "group": "tfc-autonomous",

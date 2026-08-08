@@ -65,7 +65,7 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
     "credentials": {"username": "tfc-rdp", "password": "changeme"}
   },
   "tfc_paths_env": {
-    "template": "${tfc_root}/repositories/Docker-ZED-ROS2/env/tfc_paths.env",
+    "template": "../env/tfc_paths.env",
     "dest": "${tfc_root}/config/tfc_paths.env",
     "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "0644",
     "substitutions": {"TFC_ROOT": "${tfc_root}"}
@@ -165,8 +165,11 @@ The machine's runtime paths file (the `.env` the code reads for
 `TFC_ROSBAG_DIR`, `TFC_LOG_DIR`, …) is derived from the template committed in the
 repository, not written by hand:
 
-- `template` — path to the repo's `env/tfc_paths.env` (uses `${name}` references;
-  the template ships inside the cloned repo, e.g. `Docker-ZED-ROS2`).
+- `template` — path to the repo's `env/tfc_paths.env`. **Relative values are
+  resolved against the manifest's own directory** (i.e. the repo checkout the
+  manifest lives in), so the template is found wherever the repo was cloned —
+  no need to know the final machine location. Absolute paths (or `${name}`
+  references) still work.
 - `dest` — where the runtime copy is written (e.g. `${tfc_root}/config/tfc_paths.env`).
 - `owner`, `group`, `mode` — ownership/permissions of the written file.
 - `substitutions` — a map of `KEY` → value; every `@KEY@` occurrence in the
