@@ -1,172 +1,176 @@
-FROM nvcr.io/nvidia/l4t-jetpack:r35.4.1
+FROM ubuntu:24.04
 
-# Set environment variables to avoid interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Lisbon
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+ENV PIP_NO_CACHE_DIR=1
 
-# -- Basic dependencies -- #
-RUN apt-get update && apt-get install -y \
-    curl \
-    gnupg2 \
-    lsb-release \
-    wget \
-    software-properties-common \
+ARG ROS_DISTRO=jazzy
+ENV ROS_DISTRO=${ROS_DISTRO}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash-completion \
     build-essential \
+    ca-certificates \
+    curl \
     git \
+    gnupg \
+    locales \
+    lsb-release \
+    lsof \
+    nano \
+    psmisc \
     python3 \
-    python3-pip \
     python3-dev \
-    python3-opencv \
     python3-matplotlib \
-    python3-numpy \
+    python3-opencv \
     python3-pil \
+    python3-pil.imagetk \
+    python3-pip \
     python3-psutil \
     python3-requests \
     python3-scipy \
+    python3-tk \
+    python3-venv \
     python3-yaml \
-    libopencv-dev \
-    libeigen3-dev \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    vim \
-    nano \
-    v4l-utils \
-    psmisc \
-    usbutils \
     tmux \
+    tzdata \
+    usbutils \
+    v4l-utils \
+    vim \
+    wget \
+    libeigen3-dev \
+    libgl1 \
+    libglib2.0-0t64 \
+    libgtsam-dev \
+    libopencv-dev \
+    cmake \
+    pkg-config \
+    libopenblas-dev \
+    libjpeg-dev \
+    zlib1g-dev \
+    && locale-gen en_US en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
-# -- Setup ROS2, install ROS2 Foxy and rosdep -- #
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
 
-RUN apt-get update && apt-get install -y \
-    ros-foxy-desktop \
-    python3-rosdep \
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+      -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu noble main" \
+      > /etc/apt/sources.list.d/ros2.list
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-colcon-common-extensions \
+    python3-rosdep \
     python3-vcstool \
-    ros-foxy-geometry-msgs \
-    ros-foxy-sensor-msgs \
-    ros-foxy-std-msgs \
-    ros-foxy-nav-msgs \
-    ros-foxy-nmea-msgs \
-    ros-foxy-cv-bridge \
-    ros-foxy-image-transport \
-    ros-foxy-vision-opencv \
+    ros-${ROS_DISTRO}-controller-manager \
+    ros-${ROS_DISTRO}-compressed-depth-image-transport \
+    ros-${ROS_DISTRO}-compressed-image-transport \
+    ros-${ROS_DISTRO}-cv-bridge \
+    ros-${ROS_DISTRO}-demo-nodes-py \
+    ros-${ROS_DISTRO}-example-interfaces \
+    ros-${ROS_DISTRO}-geometry-msgs \
+    ros-${ROS_DISTRO}-gtsam \
+    ros-${ROS_DISTRO}-image-transport \
+    ros-${ROS_DISTRO}-image-transport-plugins \
+    ros-${ROS_DISTRO}-joint-state-publisher \
+    ros-${ROS_DISTRO}-nav-msgs \
+    ros-${ROS_DISTRO}-nmea-msgs \
+    ros-${ROS_DISTRO}-robot-localization \
+    ros-${ROS_DISTRO}-robot-state-publisher \
+    ros-${ROS_DISTRO}-ros-base \
+    ros-${ROS_DISTRO}-rosbridge-server \
+    ros-${ROS_DISTRO}-sensor-msgs \
+    ros-${ROS_DISTRO}-std-msgs \
+    ros-${ROS_DISTRO}-teleop-twist-keyboard \
+    ros-${ROS_DISTRO}-tf2 \
+    ros-${ROS_DISTRO}-tf2-geometry-msgs \
+    ros-${ROS_DISTRO}-tf2-ros \
+    ros-${ROS_DISTRO}-theora-image-transport \
+    ros-${ROS_DISTRO}-vision-opencv \
+    ros-${ROS_DISTRO}-visualization-msgs \
+    ros-${ROS_DISTRO}-xacro \
+    ros-${ROS_DISTRO}-yaml-cpp-vendor \
     && rm -rf /var/lib/apt/lists/*
 
-RUN rosdep init && rosdep update
+RUN rosdep init || true
+RUN rosdep update
 
-# Set up ROS2 environment
-RUN echo "source /opt/ros/foxy/setup.bash" >> /root/.bashrc
+# NVIDIA userspace math libraries the aarch64 PyTorch wheel links against
+# (NVPL for CPU BLAS/LAPACK, cuDSS for the sparse solver). Base Ubuntu doesn't
+# ship these, and community reports indicate a fresh JetPack 7.2 flash doesn't
+# either -- torch fails to *import* (not just fails on CUDA) without them.
+# This does not install the CUDA toolkit/nvcc itself: this image is built for
+# inference only and is expected to run via the NVIDIA Container Runtime on
+# the Jetson (e.g. `docker run --runtime nvidia ...`), which mounts the host's
+# CUDA driver, cuDNN, and TensorRT userspace libraries into the container.
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/cuda-keyring_1.1-1_all.deb \
+      -O /tmp/cuda-keyring.deb && \
+    dpkg -i /tmp/cuda-keyring.deb && \
+    rm /tmp/cuda-keyring.deb && \
+    apt-get update && apt-get install -y --no-install-recommends \
+      nvpl \
+      libcudss0-cuda-13 \
+    && echo "/usr/lib/aarch64-linux-gnu/libcudss/13" > /etc/ld.so.conf.d/cudss.conf \
+    && ldconfig \
+    && rm -rf /var/lib/apt/lists/*
 
+# bezier==2020.1.14 (the old Foxy-era pin) does not support Python 3.12, so
+# install the current wheel with --no-deps first so it can't drag NumPy along.
+# NumPy is pinned to the 2.0.x/2.2.x range the JetPack 7.2 cu132 PyTorch wheels
+# below were built and tested against; NumPy 2.x remains ABI-compatible with
+# the apt-provided python3-opencv/python3-scipy stack (built against NumPy 1.x
+# headers). Avoid upgrading Debian's pip and wheel packages in-place; Ubuntu
+# 24.04's pip is sufficient for these wheels.
+# --ignore-installed is required because python3-opencv/python3-scipy pulled
+# in Debian's python3-numpy (1.26.4) as an apt dependency; apt-installed
+# Python packages have no pip RECORD file, so pip can't safely "uninstall"
+# it before upgrading and errors out without this flag.
+RUN python3 -m pip install --break-system-packages --no-deps bezier==2024.6.20 && \
+    python3 -m pip install --break-system-packages --ignore-installed \
+      "numpy>=2.0,<2.3" \
+      casadi \
+      pandas \
+      polars \
+      py-cpuinfo \
+      pyserial \
+      seaborn \
+      tqdm \
+      transforms3d
 
-# -- Install Eigen from source -- #
-WORKDIR /tmp
-RUN wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz && \
-tar -xzf eigen-3.4.0.tar.gz && \
-cd eigen-3.4.0 && \
-mkdir build && cd build && \
-cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
-make -j$(nproc) && \
-make install
+# PyTorch + torchvision for JetPack 7.2 / CUDA 13.2 / Jetson Orin (sm_87) /
+# Python 3.12. NVIDIA has not published an official Jetson wheel or install
+# doc for this combination yet; as of writing this is a community-documented,
+# prerelease-only path (see https://github.com/iuliaferoli/jetson-jp7.2-install).
+# A plain "pip install torch" resolves a datacenter build (sm_100/sm_110)
+# that imports fine and reports torch.cuda.is_available() == True, but fails
+# with "no kernel image is available" on the first real op on Orin. --pre is
+# required or pip won't see the cu132 wheels at all. --extra-index-url (not
+# --index-url) keeps other deps resolving from PyPI as normal.
+# If your board reports a different CUDA point release (check `nvcc --version`
+# or `dpkg -l | grep cuda-toolkit` on the host), swap cu132 for the matching
+# cuNNN suffix in the URL below.
+RUN python3 -m pip install --break-system-packages --pre \
+      torch \
+      torchvision \
+      --extra-index-url https://download.pytorch.org/whl/cu132
 
-# -- Install GTSAM from source -- #
-WORKDIR /tmp
-RUN git clone --depth 1 --branch release/4.2 https://github.com/borglab/gtsam.git && \
-cd gtsam && \
-mkdir build && cd build && \
-cmake .. \
--DEigen3_DIR=/usr/local/share/eigen3/cmake \
--DGTSAM_BUILD_EXAMPLES=OFF \
--DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF \
--DGTSAM_BUILD_TESTS=OFF \
--DGTSAM_BUILD_UNSTABLE=OFF \
--DGTSAM_USE_SYSTEM_EIGEN=ON \
--DGTSAM_WITH_TBB=OFF \
--DCMAKE_INSTALL_PREFIX=/usr/local && \
-make -j$(nproc) && \
-make install && \
-ldconfig
+# Ultralytics (YOLO). Installed --no-deps so it can't silently pull in a
+# generic PyPI torch/torchvision/opencv build and overwrite the Jetson-specific
+# ones installed above. Its other runtime deps (numpy, matplotlib, opencv,
+# pillow, pyyaml, requests, scipy, tqdm, psutil, py-cpuinfo, pandas, seaborn)
+# are already satisfied by the apt/pip packages above; ultralytics-thop is the
+# one that isn't, so it's installed alongside.
+RUN python3 -m pip install --break-system-packages --no-deps \
+      ultralytics \
+      ultralytics-thop
 
-# Rebuild the ROS OpenCV bridge against the JetPack OpenCV selected by CMake.
-# The Foxy binaries are built against Ubuntu OpenCV 4.2, while JetPack images
-# commonly expose OpenCV 4.5. The overlay keeps workspace packages on one ABI.
-WORKDIR /opt/vision_opencv_ws/src
-RUN git clone --depth 1 --branch foxy https://github.com/ros-perception/vision_opencv.git
-WORKDIR /opt/vision_opencv_ws
-RUN . /opt/ros/foxy/setup.sh && \
-    colcon build --merge-install \
-      --packages-select cv_bridge image_geometry \
-      --allow-overriding cv_bridge image_geometry
-RUN echo "source /opt/vision_opencv_ws/install/setup.bash" >> /root/.bashrc
-
-# -- Torch, Torchvision, pip dependencies -- #
-# torch
-RUN curl -L -o /tmp/torch-2.1.0a0+41361538.nv23.06-cp38-cp38-linux_aarch64.whl \
-      https://developer.download.nvidia.cn/compute/redist/jp/v512/pytorch/torch-2.1.0a0+41361538.nv23.06-cp38-cp38-linux_aarch64.whl && \
-    pip3 install /tmp/torch-2.1.0a0+41361538.nv23.06-cp38-cp38-linux_aarch64.whl && \
-    rm /tmp/torch-2.1.0a0+41361538.nv23.06-cp38-cp38-linux_aarch64.whl
-
-# build torchvision from source --
-# dependencies
-RUN apt-get update && apt-get install -y \
-    libjpeg-dev zlib1g-dev libpython3-dev libopenblas-dev libavcodec-dev libavformat-dev libswscale-dev
-
-# build torchvision; --depth 1 does a shallow clone to avoid downloading the whole history which is super slow
-WORKDIR /tmp
-# RUN git clone --progress --depth 1 --branch v0.16.0 https://github.com/pytorch/vision.git && \
-#     cd vision && \
-#     python3 setup.py install --user && \
-#     cd .. && rm -rf vision
-
-# build torchvision from source with CUDA ops for Jetson Orin
-ENV FORCE_CUDA=1
-ENV TORCH_CUDA_ARCH_LIST="8.7"
-ENV BUILD_VERSION=0.16.0
-
-WORKDIR /tmp
-RUN git clone --progress --depth 1 --branch v0.16.0 https://github.com/pytorch/vision.git && \
-    cd vision && \
-    python3 -m pip install --no-deps --no-build-isolation -v . && \
-    cd .. && rm -rf vision && \
-    rm -rf /root/.local/lib/python3.8/site-packages/torchvision*
-
-RUN python3 -m pip install --upgrade pip wheel && \
-    python3 -m pip install bezier==2020.1.14 && \
-    python3 -m pip install \
-    pyserial \
-    casadi \
-    transforms3d \
-    tqdm \
-    py-cpuinfo \
-    pandas \
-    seaborn \
-    polars \
-    ultralytics-thop && \
-    python3 -m pip install --no-deps "ultralytics==8.4"
-
-# foxglove (move above if you rebuild the whole image, here because of layer caching)
-RUN apt-get install -y \
-    ros-foxy-rosbridge-server \
-    lsof
-
-# packages to compress camera images
-RUN apt-get install -y \
-    ros-foxy-compressed-depth-image-transport \
-    ros-foxy-compressed-image-transport \
-    ros-foxy-image-transport-plugins \
-    ros-foxy-theora-image-transport \
-    ros-foxy-xacro
-
-# Create a workspace directory
 RUN mkdir -p /opt/share/workspace
 WORKDIR /opt/share/workspace
 
-# append things from .bashrc.example to .bashrc
 COPY .bashrc.example /tmp/.bashrc.example
-RUN cat /tmp/.bashrc.example >> ~/.bashrc
+RUN cat /tmp/.bashrc.example >> /root/.bashrc && \
+    echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc
 
-RUN rm -rf /var/lib/apt/lists/*
-
-CMD ["bash", "-lc", "source /opt/ros/foxy/setup.bash && source /opt/vision_opencv_ws/install/setup.bash && exec bash"]
+CMD ["bash", "-lc", "source /opt/ros/${ROS_DISTRO}/setup.bash && exec bash"]
