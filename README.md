@@ -1,14 +1,13 @@
-# Local simple environment
+# Desktop environment
 
-This dockerfile aims to provide with only the most essential tools to work with the vision pipeline of the autonomous vehicle, namely Ros2, Python 3 (and its most used libraries) and GTSAM. It is intended to be more accessible since it doesn't require complicated configuration of computer nor specific hardware, but if you do have Nvidia graphics card, then is it better to use a different version that uses CUDA to achive better performance.
-
-The environment does **NOT** have Zed tools.
+This dockerfile aims to provide with only the most essential tools to work with the pipeline of the autonomous vehicle, namely Ros2 Jazzy, Python 3 (and its most used libraries) and GTSAM. It is intended to create an environment similar to the one on Jetson for local testing.
 
 ## Requirements
 
 - [Docker](https://www.docker.com/products/docker-desktop/) installed and running
-- Minimum 15Gb free storage space
+- Minimum 20Gb free storage space
 - Mininum 8GB RAM
+- Preferably dedicated Nvidia graphics card
 
 ## Setup
 
