@@ -1,6 +1,6 @@
-# Docker-ZED
+# Jetson environment
 
-Dockerfile to run _ZED tools_ ,the _pyzed_ API, _ROS2 Foxy_ and ultralytics with GPU acess. This can/will be updated according to new needs of the TFC team. 
+Docker environment used on Jetson with all the necessary tools and libraries to run the autonomous tech stack. Many libraries in this dockerfile are especifically for ARM64, to replicate the same environment on your computer, please use dockerfile in `desktop` branch.
 
 ## Prerequisites
 Before running this script, ensure:
