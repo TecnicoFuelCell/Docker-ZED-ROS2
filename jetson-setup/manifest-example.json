@@ -22,10 +22,6 @@
       "shell": "/bin/bash",
       "umask": "0002",
       "default_password": "changeme",
-      "gnome_remote_desktop": {
-        "mode": "multi-user",
-        "desktop_sharing": true
-      },
       "state": "present"
     },
     {
@@ -35,10 +31,6 @@
       "shell": "/bin/bash",
       "umask": "0002",
       "default_password": "changeme",
-      "gnome_remote_desktop": {
-        "mode": "multi-user",
-        "desktop_sharing": false
-      },
       "state": "present"
     }
   ],
@@ -56,10 +48,6 @@
     {"name": "tfc_maps", "path": "${tfc_config}/maps", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
     {"name": "tfc_vesc", "path": "${tfc_config}/vesc", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"}
   ],
-  "gnome_remote_desktop_system": {
-    "tls": {"generate": true},
-    "credentials": {"username": "tfc-rdp", "password": "changeme"}
-  },
   "tfc_paths_env": {
     "template": "../env/tfc_paths.env",
     "dest": "${tfc_config}/tfc_paths.env",

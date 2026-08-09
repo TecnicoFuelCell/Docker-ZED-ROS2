@@ -52,7 +52,6 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
       "shell": "/bin/bash",
       "umask": "0002",
       "default_password": "changeme",
-      "gnome_remote_desktop": {"mode": "multi-user", "desktop_sharing": true},
       "state": "present"
     }
   ],
@@ -60,10 +59,6 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
     {"name": "tfc_root", "path": "/opt/tfc-autonomous", "owner": "tfcadmin",
      "group": "tfc-autonomous", "mode": "2750", "state": "present"}
   ],
-  "gnome_remote_desktop_system": {
-    "tls": {"generate": true},
-    "credentials": {"username": "tfc-rdp", "password": "changeme"}
-  },
   "tfc_paths_env": {
     "template": "../env/tfc_paths.env",
     "dest": "${tfc_root}/config/tfc_paths.env",
@@ -125,39 +120,12 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
 - Removing paths in the protected set (`/`, `/opt`, `/etc`, `/usr`, `/var`, …)
   requires `--force`.
 
-### GNOME Remote Desktop (`gnome_remote_desktop` / `gnome_remote_desktop_system`)
+### GNOME Remote Desktop
 
-Per-member configuration lives in each user's `gnome_remote_desktop` object:
-
-- `mode` — `"multi-user"` | `"single-user"` | `"disabled"` (default `"disabled"`):
-  - **multi-user** → the member uses the system-wide *remote login*
-    (`grdctl --system` → GDM login screen, where everyone logs in with their own
-    account). The system service is machine-wide: it is enabled if **any** member
-    selects `multi-user`.
-  - **single-user** → the member gets a private *headless* session
-    (`grdctl --headless` + `gnome-remote-desktop-headless.service` +
-    `loginctl enable-linger`).
-- `desktop_sharing` (optional bool) — enables that member's per-user *desktop
-  sharing* service (shares their local GNOME session when logged in). Independent
-  of `mode`; coexists with the system remote login (port 3390).
-
-Rules enforced at validation:
-
-- `multi-user` and `single-user` **cannot be mixed across users** — the system
-  remote-login service and per-user headless sessions share RDP port 3389.
-- If any member is `multi-user`, the top-level `gnome_remote_desktop_system` object
-  is required, including `credentials` (the shared "door" credentials shown to
-  every RDP client before the GDM login screen).
-- `gnome_remote_desktop_system.tls` is either `{"generate": true}` (creates a
-  self-signed certificate via `winpr-makecert` as the `gnome-remote-desktop` user)
-  or explicit `{"cert": …, "key": …}` paths (which may use `${name}` references).
-
-Prerequisite (config-only: the script does not install a desktop): GNOME + GDM +
-`gnome-remote-desktop` + `winpr-utils` must be installed manually first. If GRD is
-configured but `grdctl` (or `winpr-makecert`, when generating) is missing, the run
-fails with a message pointing at this prerequisite. Members in `single-user` /
-`desktop_sharing` mode set their own RDP credentials afterwards
-(`grdctl [--headless] rdp set-credentials` or the GNOME Settings UI).
+**Not managed by this script.** GNOME Remote Desktop (remote login, headless
+sessions, desktop sharing) is configured manually — with `grdctl`, GNOME
+Settings, or the `gnome-remote-desktop` systemd units. The script neither enables
+nor disables it, so it has no prerequisite or manifest keys for RDP/GRD.
 
 ### Runtime env file (`tfc_paths_env`)
 
@@ -248,13 +216,12 @@ reaches the desired state.
 ## Scope
 
 This script handles users, groups, directories, permissions, sudoers rules,
-per-user umasks (sudoers `Defaults` + a generated `/etc/profile.d/` snippet),
-GNOME Remote Desktop (`grdctl` / systemd units, config-only) and the runtime
-`tfc_paths.env` (copied from the repo template with `@KEY@` values substituted).
+per-user umasks (sudoers `Defaults` + a generated `/etc/profile.d/` snippet) and
+the runtime `tfc_paths.env` (copied from the repo template with `@KEY@` values
+substituted).
 
 Not handled here — separate, documented steps:
 
 - Cloning repositories (private repos: each member clones with their own SSH key).
 - Building/starting the container (`docker compose`, see `Docker-ZED-ROS2/docker-compose.yml`).
-- Installing the GNOME desktop / `gnome-remote-desktop` / `winpr-utils` packages
-  (required before GRD sections can be applied).
+- GNOME Remote Desktop (remote login / desktop sharing), configured manually.

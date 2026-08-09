@@ -148,10 +148,6 @@ def user_groups(name):
     return result
 
 
-def resolve_uid(name):
-    return pwd.getpwnam(name).pw_uid
-
-
 def resolve_gid(name):
     return grp.getgrnam(name).gr_gid
 
@@ -261,18 +257,6 @@ def validate_manifest(manifest, log):
         default_password = u.get("default_password")
         if default_password is not None and not (isinstance(default_password, str) and default_password):
             _fail(errors, "user {}: default_password must be a non-empty string".format(name))
-        grd = u.get("gnome_remote_desktop")
-        if grd is not None:
-            if not isinstance(grd, dict):
-                _fail(errors, "user {}: gnome_remote_desktop must be an object".format(name))
-            else:
-                grd_mode = grd.get("mode", "disabled")
-                if grd_mode not in ("multi-user", "single-user", "disabled"):
-                    _fail(errors, "user {}: gnome_remote_desktop.mode must be one of "
-                                  "multi-user, single-user, disabled".format(name))
-                sharing = grd.get("desktop_sharing", False)
-                if not isinstance(sharing, bool):
-                    _fail(errors, "user {}: gnome_remote_desktop.desktop_sharing must be a boolean".format(name))
         for grp_name in u.get("groups", []):
             if not isinstance(grp_name, str) or not NAME_RE.match(grp_name):
                 _fail(errors, "user {}: invalid group {!r}".format(name, grp_name))
@@ -321,34 +305,6 @@ def validate_manifest(manifest, log):
         group = d.get("group")
         if group is not None and not (isinstance(group, str) and (group_exists(group) or group in seen_groups)):
             _fail(errors, "directory {}: group {!r} is neither a declared group nor an existing group".format(path, group))
-
-    grd_users = [(u.get("name"), u.get("gnome_remote_desktop", {})) for u in users
-                 if u.get("state") == "present" and isinstance(u.get("gnome_remote_desktop"), dict)]
-    grd_modes = [g.get("mode", "disabled") for _, g in grd_users]
-    has_multi = "multi-user" in grd_modes
-    has_single = "single-user" in grd_modes
-    if has_multi and has_single:
-        _fail(errors, "gnome_remote_desktop: multi-user and single-user cannot be mixed across users — "
-                      "the system remote-login service and per-user headless sessions share RDP port 3389")
-
-    system = manifest.get("gnome_remote_desktop_system")
-    if system is not None and not isinstance(system, dict):
-        _fail(errors, "gnome_remote_desktop_system must be an object")
-    elif system is not None:
-        tls = system.get("tls", {})
-        if not isinstance(tls, dict):
-            _fail(errors, "gnome_remote_desktop_system.tls must be an object")
-        elif not tls.get("generate") and not (tls.get("cert") and tls.get("key")):
-            _fail(errors, "gnome_remote_desktop_system.tls must set generate: true or both cert and key")
-        creds = system.get("credentials")
-        if creds is not None:
-            if not isinstance(creds, dict) or not (creds.get("username") and creds.get("password")):
-                _fail(errors, "gnome_remote_desktop_system.credentials must set username and password")
-    if has_multi:
-        if system is None:
-            _fail(errors, "gnome_remote_desktop_system is required when a user has mode multi-user")
-        elif not isinstance(system.get("credentials"), dict):
-            _fail(errors, "gnome_remote_desktop_system.credentials is required in multi-user mode")
 
     tfc_env = manifest.get("tfc_paths_env")
     if tfc_env is not None:
@@ -645,121 +601,6 @@ def tfc_paths_env_ops(manifest, log):
              "dest": dest, "owner": cfg.get("owner"), "group": cfg.get("group"), "mode": mode}]
 
 
-def grd_enabled(manifest):
-    if manifest.get("gnome_remote_desktop_system"):
-        return True
-    for u in manifest.get("users", []):
-        if u.get("state") == "present" and u.get("gnome_remote_desktop"):
-            return True
-    return False
-
-
-def _user_cmd(user, args):
-    """Run args as `user` with the user's XDG runtime / DBUS session env (for --user services)."""
-    uid = resolve_uid(user)
-    env_args = ["XDG_RUNTIME_DIR=/run/user/{}".format(uid),
-                "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{}/bus".format(uid)]
-    return ["sudo", "-u", user, "-H", "env"] + env_args + args
-
-
-def _grd_cmd(mode, user, args):
-    """grdctl invocation for mode system | headless | sharing."""
-    if mode == "system":
-        return ["grdctl", "--system"] + args
-    grd = ["grdctl"] + (["--headless"] if mode == "headless" else []) + args
-    return _user_cmd(user, grd)
-
-
-def _grd_tls_dir(scope, user):
-    if scope == "system":
-        if not user_exists("gnome-remote-desktop"):
-            raise ValidationError(
-                "gnome_remote_desktop system TLS generation needs the 'gnome-remote-desktop' system user. "
-                "Install the GNOME desktop / gnome-remote-desktop first (see jetson-setup/README.md).")
-        home = pwd.getpwnam("gnome-remote-desktop").pw_dir
-    else:
-        home = pwd.getpwnam(user).pw_dir
-    return os.path.join(home, ".local", "share", "gnome-remote-desktop")
-
-
-def _ensure_user_runtime(user):
-    uid = resolve_uid(user)
-    rt = "/run/user/{}".format(uid)
-    if os.path.isdir(rt):
-        return
-    run(["systemctl", "start", "user@{}.service".format(uid)])
-    if not os.path.isdir(rt):
-        os.makedirs(rt, mode=0o700, exist_ok=True)
-        run(["chown", "{}:{}".format(user, uid), rt])
-
-
-def grd_ops(manifest, log):
-    """Plan GNOME Remote Desktop operations: system remote-login, per-user headless, desktop sharing."""
-    if not grd_enabled(manifest):
-        return []
-    if not shutil.which("grdctl"):
-        raise ValidationError(
-            "gnome_remote_desktop is configured but grdctl is not installed. Install the GNOME desktop "
-            "and gnome-remote-desktop first (see jetson-setup/README.md), then re-run.")
-
-    ops = []
-    system_cfg = manifest.get("gnome_remote_desktop_system")
-    grd_users = [(u["name"], u.get("gnome_remote_desktop", {})) for u in manifest.get("users", [])
-                 if u.get("state") == "present" and u.get("gnome_remote_desktop")]
-    homes = {u["name"]: u.get("home", os.path.join("/home", u["name"])) for u in manifest.get("users", [])
-             if u.get("state") == "present"}
-    has_multi = "multi-user" in [g.get("mode", "disabled") for _, g in grd_users]
-
-    if has_multi:
-        tls = system_cfg.get("tls", {})
-        if tls.get("generate"):
-            if not shutil.which("winpr-makecert"):
-                raise ValidationError(
-                    "gnome_remote_desktop TLS generation needs winpr-utils (winpr-makecert). "
-                    "Install it, or set tls: {cert: ..., key: ...} with existing certificates.")
-            tls_dir = _grd_tls_dir("system", None)
-            cert = os.path.join(tls_dir, "rdp-tls.crt")
-            key = os.path.join(tls_dir, "rdp-tls.key")
-            if not (os.path.exists(cert) and os.path.exists(key)):
-                ops.append({"kind": "gen_rdp_tls", "scope": "system", "user": "gnome-remote-desktop",
-                            "tls_dir": tls_dir})
-        else:
-            cert, key = tls["cert"], tls["key"]
-        ops.append({"kind": "set_rdp_tls", "mode": "system", "user": None, "cert": cert, "key": key})
-        creds = system_cfg["credentials"]
-        ops.append({"kind": "set_rdp_credentials", "mode": "system", "user": None,
-                    "username": creds["username"], "password": creds["password"]})
-        ops.append({"kind": "enable_rdp", "mode": "system", "user": None})
-        ops.append({"kind": "enable_rdp_service", "mode": "system", "user": None,
-                    "service": "gnome-remote-desktop.service", "enable_linger": False})
-        ops.append({"kind": "enable_gdm"})
-
-    for name, cfg in grd_users:
-        mode = cfg.get("mode", "disabled")
-        sharing = cfg.get("desktop_sharing", False)
-        if mode == "single-user":
-            grd_mode = "headless"
-            service = "gnome-remote-desktop-headless.service"
-        elif sharing:
-            grd_mode = "sharing"
-            service = "gnome-remote-desktop.service"
-        else:
-            continue
-        tls_dir = os.path.join(homes[name], ".local", "share", "gnome-remote-desktop")
-        cert = os.path.join(tls_dir, "rdp-tls.crt")
-        key = os.path.join(tls_dir, "rdp-tls.key")
-        if not (os.path.exists(cert) and os.path.exists(key)):
-            if not shutil.which("winpr-makecert"):
-                raise ValidationError(
-                    "user {}: per-user RDP TLS generation needs winpr-utils (winpr-makecert). "
-                    "Install it, or configure the member's RDP credentials manually.".format(name))
-            ops.append({"kind": "gen_rdp_tls", "scope": "user", "user": name, "tls_dir": tls_dir})
-        ops.append({"kind": "set_rdp_tls", "mode": grd_mode, "user": name, "cert": cert, "key": key})
-        ops.append({"kind": "enable_rdp", "mode": grd_mode, "user": name})
-        ops.append({"kind": "enable_rdp_service", "mode": grd_mode, "user": name,
-                    "service": service, "enable_linger": grd_mode == "headless"})
-    return ops
-
 
 def build_plan(manifest, force, log):
     present = []
@@ -779,8 +620,6 @@ def build_plan(manifest, force, log):
     for op in umask_profile_ops(manifest, log):
         (present if not is_destructive(op) else removals).append(op)
     for op in tfc_paths_env_ops(manifest, log):
-        (present if not is_destructive(op) else removals).append(op)
-    for op in grd_ops(manifest, log):
         (present if not is_destructive(op) else removals).append(op)
 
     removal_order = {"delete_dir": 0, "delete_user": 1, "delete_group": 2,
@@ -826,21 +665,6 @@ def describe(op):
         return "remove {}".format(UMASK_PROFILE_PATH)
     if kind == "write_tfc_paths_env":
         return "write {} (from tfc_paths_env template)".format(op["dest"])
-    if kind == "gen_rdp_tls":
-        who = "system" if op.get("scope") == "system" else "user " + op.get("user", "?")
-        return "generate RDP TLS certificate ({})".format(who)
-    if kind == "set_rdp_tls":
-        return "set RDP TLS certificate/key ({})".format(op.get("mode", "?"))
-    if kind == "set_rdp_credentials":
-        who = "system" if op.get("mode") == "system" else "user " + op.get("user", "?")
-        return "set RDP credentials ({})".format(who)
-    if kind == "enable_rdp":
-        return "enable RDP backend ({})".format(op.get("mode", "?"))
-    if kind == "enable_rdp_service":
-        who = "system" if op.get("mode") == "system" else "user " + op.get("user", "?")
-        return "enable {} ({})".format(op.get("service", "gnome-remote-desktop.service"), who)
-    if kind == "enable_gdm":
-        return "enable GDM (remote login service)"
     return kind
 
 
@@ -929,20 +753,6 @@ def build_undo(op, snapshot_dir, index):
     if kind == "write_tfc_paths_env":
         return {"kind": "write_tfc_paths_env", "old_content": op["old_content"], "dest": op["dest"],
                 "owner": op.get("owner"), "group": op.get("group"), "mode": op["mode"]}
-    if kind == "gen_rdp_tls":
-        return {"kind": "noop"}
-    if kind == "set_rdp_tls":
-        return {"kind": "noop"}
-    if kind == "set_rdp_credentials":
-        return {"kind": "set_rdp_credentials", "mode": op["mode"], "user": op.get("user"), "clear": True}
-    if kind == "enable_rdp":
-        return {"kind": "enable_rdp", "mode": op["mode"], "user": op.get("user"), "disable": True}
-    if kind == "enable_rdp_service":
-        return {"kind": "enable_rdp_service", "mode": op["mode"], "user": op.get("user"),
-                "service": op.get("service", "gnome-remote-desktop.service"),
-                "enable_linger": op.get("enable_linger", False), "disable": True}
-    if kind == "enable_gdm":
-        return {"kind": "enable_gdm", "disable": True}
     raise SetupError("no undo defined for op kind {}".format(kind))
 
 
@@ -1033,35 +843,6 @@ def execute_op(op, undo, log):
         write_file_atomic(op["dest"], op["content"], op["mode"], log)
         if op.get("owner") and op.get("group"):
             exec_cmd(["chown", "{}:{}".format(op["owner"], op["group"]), op["dest"]], log, "set owner of " + op["dest"])
-    elif kind == "gen_rdp_tls":
-        run_as = op["user"]
-        tls_dir = op["tls_dir"]
-        os.makedirs(tls_dir, exist_ok=True)
-        exec_cmd(["chown", run_as, tls_dir], log, "set owner of " + tls_dir)
-        res = run(["sudo", "-u", run_as, "-H", "winpr-makecert", "-silent", "-rdp", "-path", tls_dir, "rdp-tls"],
-                  timeout=120)
-        if not res.ok:
-            raise ActionFailure("gen_rdp_tls", "winpr-makecert failed:\n" + res.stderr.strip())
-    elif kind == "set_rdp_tls":
-        exec_cmd(_grd_cmd(op["mode"], op["user"], ["rdp", "set-tls-key", op["key"]]), log, "set RDP TLS key")
-        exec_cmd(_grd_cmd(op["mode"], op["user"], ["rdp", "set-tls-cert", op["cert"]]), log, "set RDP TLS certificate")
-    elif kind == "set_rdp_credentials":
-        exec_cmd(_grd_cmd(op["mode"], op["user"], ["rdp", "set-credentials", op["username"], op["password"]]),
-                 log, "set RDP credentials")
-    elif kind == "enable_rdp":
-        exec_cmd(_grd_cmd(op["mode"], op["user"], ["rdp", "enable"]), log, "enable RDP")
-        exec_cmd(_grd_cmd(op["mode"], op["user"], ["rdp", "disable-view-only"]), log, "disable RDP view-only")
-    elif kind == "enable_rdp_service":
-        if op.get("mode") == "system":
-            exec_cmd(["systemctl", "enable", "--now", op["service"]], log, "enable " + op["service"])
-        else:
-            if op.get("enable_linger"):
-                run(["loginctl", "enable-linger", op["user"]])
-            _ensure_user_runtime(op["user"])
-            exec_cmd(_user_cmd(op["user"], ["systemctl", "--user", "enable", "--now", op["service"]]),
-                     log, "enable " + op["service"])
-    elif kind == "enable_gdm":
-        exec_cmd(["systemctl", "enable", "--now", "gdm.service"], log, "enable gdm.service")
     else:
         raise SetupError("unknown op kind " + str(kind))
 
@@ -1146,29 +927,6 @@ def verify_op(op, log):
         if stat.S_IMODE(st.st_mode) != op["mode"]:
             raise ActionFailure(kind, "mode of {} is {}, expected {}".format(
                 op["dest"], oct(stat.S_IMODE(st.st_mode)), oct(op["mode"])))
-    elif kind == "gen_rdp_tls":
-        for suffix in ("rdp-tls.crt", "rdp-tls.key"):
-            if not os.path.exists(os.path.join(op["tls_dir"], suffix)):
-                raise ActionFailure(kind, "{} missing after apply".format(os.path.join(op["tls_dir"], suffix)))
-    elif kind in ("set_rdp_tls", "set_rdp_credentials"):
-        res = run(_grd_cmd(op["mode"], op["user"], ["status"]))
-        if not res.ok:
-            raise ActionFailure(kind, "grdctl status failed:\n" + res.stderr.strip())
-    elif kind == "enable_rdp":
-        res = run(_grd_cmd(op["mode"], op["user"], ["status"]))
-        if not (res.ok and re.search(r"Status:\s*enabled", res.stdout or "")):
-            raise ActionFailure(kind, "RDP did not report enabled after apply:\n{}".format(res.stdout or res.stderr))
-    elif kind == "enable_rdp_service":
-        if op.get("mode") == "system":
-            res = run(["systemctl", "is-active", op["service"]])
-        else:
-            res = run(_user_cmd(op["user"], ["systemctl", "--user", "is-active", op["service"]]))
-        if res.stdout.strip() != "active":
-            raise ActionFailure(kind, "{} not active after apply".format(op.get("service")))
-    elif kind == "enable_gdm":
-        res = run(["systemctl", "is-active", "gdm"])
-        if res.stdout.strip() != "active":
-            raise ActionFailure(kind, "gdm not active after apply")
     else:
         raise SetupError("unknown op kind " + str(kind))
 
@@ -1260,23 +1018,6 @@ def undo_op(undo, log):
             write_file_atomic(undo["dest"], undo["old_content"], undo["mode"], log)
             if undo.get("owner") and undo.get("group"):
                 run(["chown", "{}:{}".format(undo["owner"], undo["group"]), undo["dest"]])
-    elif kind == "set_rdp_credentials":
-        if undo.get("clear"):
-            run(_grd_cmd(undo["mode"], undo.get("user"), ["rdp", "clear-credentials"]))
-    elif kind == "enable_rdp":
-        if undo.get("disable"):
-            run(_grd_cmd(undo["mode"], undo.get("user"), ["rdp", "disable"]))
-    elif kind == "enable_rdp_service":
-        if undo.get("disable"):
-            if undo.get("mode") == "system":
-                run(["systemctl", "disable", undo["service"]])
-            else:
-                run(_user_cmd(undo["user"], ["systemctl", "--user", "disable", undo["service"]]))
-                if undo.get("enable_linger"):
-                    run(["loginctl", "disable-linger", undo["user"]])
-    elif kind == "enable_gdm":
-        if undo.get("disable"):
-            run(["systemctl", "disable", "gdm.service"])
     else:
         log.error("unknown undo kind: " + str(kind))
 
