@@ -58,8 +58,8 @@ run_args=(
   -it
   --name "$container_name"
   --network host
-  # MUDANÇA AQUI: Monta apenas o 'src' para não apagar o 'install' do Docker
-  -v "$workspace/src:/opt/share/workspace/src"
+  -v "$workspace:/opt/share/workspace"
+  -w "/opt/share/workspace"
 )
 
 if [[ "$use_usb" =~ ^[Yy]$ ]]; then
