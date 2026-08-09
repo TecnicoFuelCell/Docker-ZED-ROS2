@@ -9,13 +9,14 @@ ENV ROS_DISTRO=jazzy
 SHELL ["/bin/bash", "-c"]
 
 # -----------------------------------------------------------------------------
-# 1. Dependências de sistema base (Eigen 3.4 já vem no Ubuntu 24.04)
+# 1. Dependências de sistema base
 # -----------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake git wget curl unzip \
         libboost-all-dev libtbb-dev libopencv-dev \
         python3-pip python3-colcon-common-extensions python3-rosdep python3-vcstool \
         libeigen3-dev \
+        ros-jazzy-nmea-msgs \
     && rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------------------------------------------------
@@ -36,20 +37,7 @@ RUN git clone --branch 4.2 --depth 1 https://github.com/borglab/gtsam.git /tmp/g
     && rm -rf /tmp/gtsam
 
 # -----------------------------------------------------------------------------
-# 3. Dependências ROS declaradas nos package.xml
-# -----------------------------------------------------------------------------
-WORKDIR /opt/share/workspace
-COPY src ./src
-COPY description ./description
-
-RUN apt-get update \
-    && rosdep update \
-    && rosdep install --from-paths src --ignore-src -r -y \
-        --skip-keys "gtsam" \
-    && rm -rf /var/lib/apt/lists/*
-
-# -----------------------------------------------------------------------------
-# 4. Dependências Python (Python 3.12 nativo do Jazzy aceita todas)
+# 3. Dependências Python (Python 3.12 nativo do Jazzy)
 # -----------------------------------------------------------------------------
 RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed \
         casadi \
@@ -60,14 +48,16 @@ RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed \
         torch --extra-index-url https://download.pytorch.org/whl/cpu
 
 # -----------------------------------------------------------------------------
-# 5. Build do workspace
+# 4. Automar o source do ROS 2 e Workspace no .bashrc (para novas sessões)
 # -----------------------------------------------------------------------------
-RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
-    && colcon build --symlink-install
+RUN echo "source /opt/ros/jazzy/setup.bash" >> /root/.bashrc \
+    && echo "if [ -f /opt/share/workspace/install/setup.bash ]; then source /opt/share/workspace/install/setup.bash; fi" >> /root/.bashrc
 
 # -----------------------------------------------------------------------------
-# 6. Entrypoint
+# 5. Entrypoint e diretório de trabalho
 # -----------------------------------------------------------------------------
+WORKDIR /opt/share/workspace
+
 RUN printf '#!/bin/bash\nset -e\nsource /opt/ros/jazzy/setup.bash\nif [ -f /opt/share/workspace/install/setup.bash ]; then\n    source /opt/share/workspace/install/setup.bash\nfi\nexec "$@"\n' > /ros_entrypoint.sh \
     && chmod +x /ros_entrypoint.sh
 

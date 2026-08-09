@@ -51,7 +51,7 @@ if docker image inspect "$image_name" >/dev/null 2>&1; then
   echo "Image '$image_name' already exists. Skipping build."
 else
   echo "Building image: $image_name"
-  docker build -t "$image_name" -f "$script_dir/Dockerfile" "$workspace"
+  docker build -t "$image_name" -f "$script_dir/Dockerfile" "$script_dir"
 fi
 
 run_args=(
