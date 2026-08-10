@@ -35,26 +35,25 @@
     }
   ],
   "directories": [
-    {"name": "tfc_root", "path": "/opt/tfc-autonomous", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2750", "state": "present"},
-    {"name": "tfc_repositories", "path": "${tfc_root}/repositories", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2750", "state": "present"},
-    {"name": "tfc_data", "path": "${tfc_root}/data", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"name": "tfc_rosbags", "path": "${tfc_data}/rosbags", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"name": "tfc_logs", "path": "${tfc_data}/logs", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"name": "tfc_models", "path": "${tfc_data}/models", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"name": "tfc_snapshots", "path": "${tfc_data}/snapshots", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"name": "tfc_config", "path": "${tfc_root}/config", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"name": "tfc_params", "path": "${tfc_config}/params", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"name": "tfc_camera", "path": "${tfc_config}/camera", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"name": "tfc_maps", "path": "${tfc_config}/maps", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
-    {"name": "tfc_vesc", "path": "${tfc_config}/vesc", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"}
+    {"name": "tfc_root",          "env": "TFC_ROOT",              "path": "/opt/tfc-autonomous",      "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2750", "state": "present"},
+    {"name": "tfc_repositories",  "env": "TFC_REPOSITORIES_DIR",  "path": "${tfc_root}/repositories", "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2750", "state": "present"},
+    {"name": "tfc_data",          "env": "TFC_DATA_DIR",          "path": "${tfc_root}/data",         "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_rosbags",       "env": "TFC_ROSBAG_DIR",        "path": "${tfc_data}/rosbags",      "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_logs",          "env": "TFC_LOG_DIR",           "path": "${tfc_data}/logs",         "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_models",        "env": "TFC_MODELS_DIR",        "path": "${tfc_data}/models",       "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_snapshots",     "env": "TFC_SNAPSHOT_DIR",      "path": "${tfc_data}/snapshots",    "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_config",        "env": "TFC_CONFIG_DIR",        "path": "${tfc_root}/config",       "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_params",        "env": "TFC_PARAMS_DIR",        "path": "${tfc_config}/params",     "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_camera",        "env": "TFC_CAMERA_DIR",        "path": "${tfc_config}/camera",     "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_maps",          "env": "TFC_MAPS_DIR",          "path": "${tfc_config}/maps",       "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"},
+    {"name": "tfc_vesc",          "env": "TFC_VESC_DIR",          "path": "${tfc_config}/vesc",       "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "2775", "state": "present"}
   ],
   "tfc_paths_env": {
-    "template": "../env/tfc_paths.env",
     "dest": "${tfc_config}/tfc_paths.env",
     "owner": "tfcadmin",
     "group": "tfc-autonomous",
     "mode": "0644",
-    "substitutions": {"TFC_ROOT": "${tfc_root}"}
+    "exports": {"TFC_PROJECT": "tfc-autonomous"}
   },
   "sudoers": [
     "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/git",

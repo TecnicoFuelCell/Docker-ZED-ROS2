@@ -57,13 +57,14 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
   ],
   "directories": [
     {"name": "tfc_root", "path": "/opt/tfc-autonomous", "owner": "tfcadmin",
-     "group": "tfc-autonomous", "mode": "2750", "state": "present"}
+     "group": "tfc-autonomous", "mode": "2750", "state": "present", "env": "TFC_ROOT"},
+    {"name": "tfc_config", "path": "${tfc_root}/config", "owner": "tfcadmin",
+     "group": "tfc-autonomous", "mode": "2775", "state": "present", "env": "TFC_CONFIG_DIR"}
   ],
   "tfc_paths_env": {
-    "template": "../env/tfc_paths.env",
     "dest": "${tfc_root}/config/tfc_paths.env",
     "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "0644",
-    "substitutions": {"TFC_ROOT": "${tfc_root}"}
+    "exports": {"TFC_PROJECT": "tfc-autonomous"}
   },
   "sudoers": [
     "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/git"
@@ -84,8 +85,12 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
   (e.g. `"path": "${tfc_root}/repositories"`, `"dest": "${tfc_config}/tfc_paths.env"`).
   References may chain to other names. Unknown names, duplicate names and reference
   cycles are rejected with a message naming the offending field. `${...}` is
-  therefore reserved — literal paths must not contain it. The `name` field itself is
-  metadata and never appears in the plan output.
+   therefore reserved — literal paths must not contain it. The `name` field itself is
+   metadata and never appears in the plan output.
+- `directories[].env` (optional) gives that directory a **variable name** to export
+  into the runtime env file (see below). Only `present` directories with an `env`
+  field are exported; `env` names must be unique and may not collide with the keys
+  of `tfc_paths_env.exports`.
 - `users[].groups` are supplementary memberships (the user's primary group is the
   username by default). Members are added to `docker` so they can use the container.
 - `users[].default_password` (optional) sets the account's **initial** password
@@ -130,18 +135,23 @@ nor disables it, so it has no prerequisite or manifest keys for RDP/GRD.
 ### Runtime env file (`tfc_paths_env`)
 
 The machine's runtime paths file (the `.env` the code reads for
-`TFC_ROSBAG_DIR`, `TFC_LOG_DIR`, …) is derived from the template committed in the
-repository, not written by hand:
+`TFC_ROSBAG_DIR`, `TFC_LOG_DIR`, …) is **generated from the manifest**, not written
+by hand and not copied from a template:
 
-- `template` — path to the repo's `env/tfc_paths.env`. **Relative values are
-  resolved against the manifest's own directory** (i.e. the repo checkout the
-  manifest lives in), so the template is found wherever the repo was cloned —
-  no need to know the final machine location. Absolute paths (or `${name}`
-  references) still work.
-- `dest` — where the runtime copy is written (e.g. `${tfc_root}/config/tfc_paths.env`).
+- Each `present` directory with an `env` field is exported. The value mirrors the
+  manifest's own definition: an **absolute** `path` is written verbatim
+  (e.g. `TFC_ROOT="/opt/tfc-autonomous"`), while a `${name}`-referenced path keeps
+  its references — translated to the referenced directory's `env` name
+  (e.g. `"path": "${tfc_root}/config"` with `env: TFC_CONFIG_DIR` writes
+  `TFC_CONFIG_DIR="${TFC_ROOT}/config"`). Referenced directories must therefore
+  have an `env` field too. Directories are emitted in dependency order (referenced
+  first) so the shell can expand the references as it sources the file.
+- `exports` — an optional map of extra `KEY` → value pairs appended to the file
+  (sorted by key), for values that are not directory paths.
+- `dest` — where the runtime file is written (e.g. `${tfc_root}/config/tfc_paths.env`).
 - `owner`, `group`, `mode` — ownership/permissions of the written file.
-- `substitutions` — a map of `KEY` → value; every `@KEY@` occurrence in the
-  template is replaced (e.g. `"TFC_ROOT": "${tfc_root}"`).
+- The old `template`/`substitutions` mechanism is gone; a manifest still carrying
+  those keys is rejected with a hint.
 - Idempotent: re-runs skip the write when the destination already matches. The op
   is atomic and undoable like the sudoers file.
 
@@ -217,8 +227,8 @@ reaches the desired state.
 
 This script handles users, groups, directories, permissions, sudoers rules,
 per-user umasks (sudoers `Defaults` + a generated `/etc/profile.d/` snippet) and
-the runtime `tfc_paths.env` (copied from the repo template with `@KEY@` values
-substituted).
+the runtime `tfc_paths.env` (generated from the manifest's directory `env` fields
+and `tfc_paths_env.exports`).
 
 Not handled here — separate, documented steps:
 

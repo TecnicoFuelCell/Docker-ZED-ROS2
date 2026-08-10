@@ -41,6 +41,7 @@ NAME_RE = re.compile(r"^[a-z_][a-z0-9._-]*$")
 MODE_RE = re.compile(r"^[0-7]{4}$")
 REF_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_-]*)\}")
 DIR_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
+ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 PROTECTED_PATHS = {
     "/", "/bin", "/boot", "/dev", "/etc", "/home", "/lib", "/opt",
@@ -282,6 +283,7 @@ def validate_manifest(manifest, log):
                 _fail(errors, "group {}: declared absent but referenced by user {}".format(g_name, u_name))
 
     seen_dirs = {}
+    seen_env_names = set()
     for d in dirs:
         path = d.get("path")
         state = d.get("state")
@@ -305,16 +307,37 @@ def validate_manifest(manifest, log):
         group = d.get("group")
         if group is not None and not (isinstance(group, str) and (group_exists(group) or group in seen_groups)):
             _fail(errors, "directory {}: group {!r} is neither a declared group nor an existing group".format(path, group))
+        env = d.get("env")
+        if env is not None and not (isinstance(env, str) and ENV_NAME_RE.match(env)):
+            _fail(errors, "directory {}: env {!r} must match {!r}".format(path, env, ENV_NAME_RE.pattern))
+
+    dir_env_by_name = {}
+    for d in dirs:
+        env = d.get("env")
+        if env is None or d.get("state") != "present":
+            continue
+        if env in seen_env_names:
+            _fail(errors, "directory {}: duplicate env variable name {!r}".format(d.get("path"), env))
+        seen_env_names.add(env)
+        name = d.get("name")
+        if name is not None:
+            dir_env_by_name[name] = env
+
+    for d in dirs:
+        if d.get("state") != "present" or not d.get("env"):
+            continue
+        raw = d.get("_raw_path") or d.get("path")
+        for m in REF_RE.finditer(raw):
+            ref = m.group(1)
+            if ref not in dir_env_by_name:
+                _fail(errors, "directory {}: env export references ${{{}}}, which has no env field".format(d.get("path"), ref))
 
     tfc_env = manifest.get("tfc_paths_env")
     if tfc_env is not None:
         if not isinstance(tfc_env, dict):
             _fail(errors, "tfc_paths_env must be an object")
         else:
-            template = tfc_env.get("template")
             dest = tfc_env.get("dest")
-            if not (isinstance(template, str) and template.startswith("/")):
-                _fail(errors, "tfc_paths_env.template must be an absolute path")
             if not (isinstance(dest, str) and dest.startswith("/")):
                 _fail(errors, "tfc_paths_env.dest must be an absolute path")
             if not (isinstance(tfc_env.get("mode"), str) and MODE_RE.match(tfc_env.get("mode", ""))):
@@ -323,13 +346,23 @@ def validate_manifest(manifest, log):
                 val = tfc_env.get(key)
                 if val is not None and not (isinstance(val, str) and val):
                     _fail(errors, "tfc_paths_env.{} must be a non-empty string".format(key))
-            subs = tfc_env.get("substitutions", {})
-            if not isinstance(subs, dict):
-                _fail(errors, "tfc_paths_env.substitutions must be an object of key -> value strings")
-            else:
-                for k, v in subs.items():
-                    if not isinstance(k, str) or not isinstance(v, str):
-                        _fail(errors, "tfc_paths_env.substitutions: keys and values must be strings")
+            for key in ("template", "substitutions"):
+                if key in tfc_env:
+                    _fail(errors, "tfc_paths_env.{} is no longer supported; export directories via their env "
+                                  "field and extra values via tfc_paths_env.exports".format(key))
+            exports = tfc_env.get("exports")
+            if exports is not None:
+                if not isinstance(exports, dict):
+                    _fail(errors, "tfc_paths_env.exports must be an object of key -> value strings")
+                else:
+                    for k, v in exports.items():
+                        if not (isinstance(k, str) and ENV_NAME_RE.match(k)):
+                            _fail(errors, "tfc_paths_env.exports: key {!r} must match {!r}".format(k, ENV_NAME_RE.pattern))
+                        if not isinstance(v, str):
+                            _fail(errors, "tfc_paths_env.exports: value for {!r} must be a string".format(k))
+                        if k in seen_env_names:
+                            _fail(errors, "tfc_paths_env.exports: key {!r} collides with a directory env name".format(k))
+                        seen_env_names.add(k)
 
     for rule in sudoers:
         if not isinstance(rule, str) or not rule.strip():
@@ -370,17 +403,14 @@ def resolve_manifest(manifest, manifest_dir):
     manifest may reference it as ${name}, composed inline (e.g. "${tfc_root}/repositories").
     References may chain to other references. Unknown names, duplicate names and cycles
     are reported as errors. Returns a list of error strings (empty when valid).
-
-    tfc_paths_env.template is additionally resolved: a relative value is interpreted
-    as a path inside the manifest's own repo checkout (relative to manifest_dir), so
-    the template is found wherever the repo was cloned without knowing the final
-    location.
     """
     errors = []
     names = {}
     for d in manifest.get("directories", []):
         if not isinstance(d, dict):
             continue
+        if isinstance(d.get("path"), str):
+            d["_raw_path"] = d["path"]
         name = d.get("name")
         if name is None:
             continue
@@ -430,12 +460,6 @@ def resolve_manifest(manifest, manifest_dir):
         return node
 
     walk(manifest, "manifest")
-
-    tfc_env = manifest.get("tfc_paths_env")
-    if isinstance(tfc_env, dict):
-        template = tfc_env.get("template")
-        if isinstance(template, str) and not template.startswith("/"):
-            tfc_env["template"] = os.path.normpath(os.path.join(manifest_dir, template))
     return errors
 
 
@@ -577,20 +601,72 @@ def umask_profile_ops(manifest, log):
     return [{"kind": "write_umask_profile", "old_content": current, "content": content}]
 
 
+def _env_ref_value(raw, name_to_env):
+    """Translate ${name} references in a manifest path into ${ENV} references."""
+
+    def repl(m):
+        env = name_to_env.get(m.group(1))
+        return "${" + env + "}" if env else m.group(0)
+
+    return REF_RE.sub(repl, raw)
+
+
 def tfc_paths_env_ops(manifest, log):
-    """Generate /opt config from the committed env template (tfc_paths_env)."""
+    """Generate the /opt config env file from manifest directories (env fields) and exports.
+
+    Directories whose env field is set are exported in dependency order (referenced
+    directories first), preserving the manifest's reference style: an absolute path is
+    written verbatim, a ${name}-referenced path keeps its references as ${ENV} references.
+    tfc_paths_env.exports adds extra key/value pairs, sorted by key.
+    """
     cfg = manifest.get("tfc_paths_env")
     if not cfg:
         return []
-    template = cfg["template"]
     dest = cfg["dest"]
     mode = int(cfg["mode"], 8)
-    if not os.path.exists(template):
-        raise ValidationError("tfc_paths_env template not found: {} — clone the repo or fix the path".format(template))
-    with open(template) as f:
-        content = f.read()
-    for key, val in cfg.get("substitutions", {}).items():
-        content = content.replace("@" + key + "@", val)
+
+    name_to_env = {}
+    dir_exports = []
+    for d in manifest.get("directories", []):
+        if not isinstance(d, dict) or d.get("state") != "present" or not d.get("env"):
+            continue
+        env = d["env"]
+        name = d.get("name")
+        raw = d.get("_raw_path") or d.get("path")
+        dir_exports.append((env, raw))
+        if name:
+            name_to_env[name] = env
+
+    lines = ["# generated by setup_jetson.py — do not edit"]
+    deps = {}
+    by_env = {}
+    for env, raw in dir_exports:
+        refs = set()
+        for m in REF_RE.finditer(raw):
+            ref = m.group(1)
+            if ref in name_to_env:
+                refs.add(name_to_env[ref])
+        deps[env] = refs
+        by_env[env] = raw
+    order = []
+    remaining = set(deps)
+    while remaining:
+        ready = sorted(e for e in remaining if not deps[e] & remaining)
+        if not ready:
+            ready = sorted(remaining)
+        for e in ready:
+            order.append(e)
+            remaining.discard(e)
+    for env in order:
+        lines.append('export {}="{}"'.format(env, _env_ref_value(by_env[env], name_to_env)))
+
+    exports = cfg.get("exports") or {}
+    if exports:
+        lines.append("")
+        for key in sorted(exports):
+            lines.append('export {}="{}"'.format(key, exports[key]))
+    content = "\n".join(lines) + "\n"
+
     current = None
     if os.path.exists(dest):
         with open(dest) as f:
@@ -664,7 +740,7 @@ def describe(op):
     if kind == "delete_umask_profile":
         return "remove {}".format(UMASK_PROFILE_PATH)
     if kind == "write_tfc_paths_env":
-        return "write {} (from tfc_paths_env template)".format(op["dest"])
+        return "write {} (generated from manifest)".format(op["dest"])
     return kind
 
 
