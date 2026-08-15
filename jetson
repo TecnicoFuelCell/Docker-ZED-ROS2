@@ -91,8 +91,15 @@ jetson_docker_logs() {
 jetson_docker_enter() {
     _jetson_load_env || return 1
     local container="$TFC_CONTAINER_NAME"
+    local state
     if ! docker ps --format '{{.Names}}' | grep -qx "$container"; then
-        echo "jetson: container '$container' is not running - start it with 'jetson docker up'" >&2
+        state="$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null || echo missing)"
+        if [[ "$state" == "restarting" ]]; then
+            echo "jetson: container '$container' is restarting - check 'jetson docker logs' for the crash reason" >&2
+            echo "jetson: a common cause is a missing 'install/setup.bash' in the workspace; run 'ros_build' inside the container" >&2
+            return 1
+        fi
+        echo "jetson: container '$container' is not running ($state) - start it with 'jetson docker up'" >&2
         return 1
     fi
     if [[ -z "${DISPLAY:-}" ]]; then
