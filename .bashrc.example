@@ -1,13 +1,42 @@
-foxglove_launch() {
-ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+# ROS2 workspace helpers — sourced on container startup. TFC_* variables are
+# injected by docker-compose.yml (from tfc_paths.env) and by `jetson docker enter`.
+[[ -f /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash ]] && source /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash
+[[ -f install/setup.bash ]] && source install/setup.bash
+
+ros_source() {
+  [[ -f /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash ]] && source /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash
+  [[ -f install/setup.bash ]] && source install/setup.bash
 }
 
-source install/setup.bash
+ros_build() {
+  colcon build --symlink-install "$@"
+}
+
+ros_clean() {
+  rm -rf build install log
+  ros_source
+}
+
+ros_launch() {
+  ros2 launch "$@"
+}
+
+foxglove_launch() {
+  ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+}
+
+rviz() {
+  rviz2 "$@"
+}
 
 pipeline_with_logs() {
-ros2 launch what_could_go_wrong pipeline_launch.xml |& tee "resources/logs/$(date +'%Y-%m-%d-%H-%M').log"
+  local log_dir="${TFC_LOG_DIR:-resources/logs}"
+  mkdir -p "$log_dir"
+  ros2 launch what_could_go_wrong pipeline_launch.xml |& tee "$log_dir/$(date +'%Y-%m-%d-%H-%M').log"
 }
 
 car_with_logs() {
-ros2 launch what_could_go_wrong car_launch.xml |& tee "resources/logs/$(date +'%Y-%m-%d-%H-%M').log"
+  local log_dir="${TFC_LOG_DIR:-resources/logs}"
+  mkdir -p "$log_dir"
+  ros2 launch what_could_go_wrong car_launch.xml |& tee "$log_dir/$(date +'%Y-%m-%d-%H-%M').log"
 }
