@@ -1,3 +1,6 @@
+> [!WARNING]
+> This branch is out-of-date as August 2026, for the most recent versions please checkout `jetson`, `sim` or `desktop` branches or find the latest version for the target platform in the release section.
+
 # Local simple environment
 
 This dockerfile aims to provide with only the most essential tools to work with the vision pipeline of the autonomous vehicle, namely Ros2, Python 3 (and its most used libraries) and GTSAM. It is intended to be more accessible since it doesn't require complicated configuration of computer nor specific hardware, but if you do have Nvidia graphics card, then is it better to use a different version that uses CUDA to achive better performance.
