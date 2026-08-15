@@ -170,8 +170,8 @@ RUN python3 -m pip install --break-system-packages --no-deps \
 RUN mkdir -p $WORKSPACE
 WORKDIR $WORKSPACE
 
-COPY .bashrc.example /tmp/.bashrc.example
-RUN cat /tmp/.bashrc.example >> /root/.bashrc && \
-    echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc
+COPY .bashrc.example /etc/tfc/ros2.bashrc
+RUN printf '[[ -f /etc/tfc/ros2.bashrc ]] && source /etc/tfc/ros2.bashrc\n' >> /root/.bashrc \
+    && echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc
 
 CMD ["bash", "-lc", "source /opt/ros/${ROS_DISTRO}/setup.bash && exec bash"]
