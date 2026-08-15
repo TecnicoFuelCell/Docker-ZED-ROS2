@@ -64,7 +64,7 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
   "tfc_paths_env": {
     "dest": "${tfc_root}/config/tfc_paths.env",
     "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "0644",
-    "exports": {"TFC_PROJECT": "tfc-autonomous"}
+    "exports": {"TFC_PROJECT": "tfc-autonomous", "TFC_CONTAINER_NAME": "tfc-autonomous"}
   },
   "sudoers": [
     "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/git"
@@ -233,5 +233,5 @@ and `tfc_paths_env.exports`).
 Not handled here — separate, documented steps:
 
 - Cloning repositories (private repos: each member clones with their own SSH key).
-- Building/starting the container (`docker compose`, see `Docker-ZED-ROS2/docker-compose.yml`).
+- Building/starting the container (`./jetson docker up --build`, see `Docker-ZED-ROS2/docker-compose.yml`).
 - GNOME Remote Desktop (remote login / desktop sharing), configured manually.

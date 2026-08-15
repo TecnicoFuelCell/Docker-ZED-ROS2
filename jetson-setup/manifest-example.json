@@ -53,7 +53,10 @@
     "owner": "tfcadmin",
     "group": "tfc-autonomous",
     "mode": "0644",
-    "exports": {"TFC_PROJECT": "tfc-autonomous"}
+    "exports": {
+      "TFC_PROJECT": "tfc-autonomous",
+      "TFC_CONTAINER_NAME": "tfc-autonomous"
+    }
   },
   "sudoers": [
     "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/git",

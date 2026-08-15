@@ -7,6 +7,7 @@ ENV PIP_NO_CACHE_DIR=1
 
 ARG ROS_DISTRO=jazzy
 ENV ROS_DISTRO=${ROS_DISTRO}
+ARG WORKSPACE=/workspace
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash-completion \
@@ -166,8 +167,8 @@ RUN python3 -m pip install --break-system-packages --no-deps \
       ultralytics \
       ultralytics-thop
 
-RUN mkdir -p /opt/share/workspace
-WORKDIR /opt/share/workspace
+RUN mkdir -p $WORKSPACE
+WORKDIR $WORKSPACE
 
 COPY .bashrc.example /tmp/.bashrc.example
 RUN cat /tmp/.bashrc.example >> /root/.bashrc && \
