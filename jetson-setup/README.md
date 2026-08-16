@@ -64,7 +64,8 @@ Exit codes: `0` success, `1` any failure, `130` interrupted (Ctrl+C), `143` SIGT
   "tfc_paths_env": {
     "dest": "${tfc_root}/config/tfc_paths.env",
     "owner": "tfcadmin", "group": "tfc-autonomous", "mode": "0644",
-    "exports": {"TFC_PROJECT": "tfc-autonomous", "TFC_CONTAINER_NAME": "tfc-autonomous"}
+    "exports": {"TFC_PROJECT": "tfc-autonomous", "TFC_CONTAINER_NAME": "tfc-autonomous",
+                "TFC_DOCKER_DIR": "${tfc_repositories}/Docker-ZED-ROS2"}
   },
   "sudoers": [
     "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/git"
@@ -147,7 +148,10 @@ by hand and not copied from a template:
   have an `env` field too. Directories are emitted in dependency order (referenced
   first) so the shell can expand the references as it sources the file.
 - `exports` — an optional map of extra `KEY` → value pairs appended to the file
-  (sorted by key), for values that are not directory paths.
+  (sorted by key), for values that are not directory paths. Values may use
+  `${name}` references too; they are translated to `${ENV}` references exactly
+  like directory paths (e.g. `"TFC_DOCKER_DIR": "${tfc_repositories}/Docker-ZED-ROS2"`
+  writes `TFC_DOCKER_DIR="${TFC_REPOSITORIES_DIR}/Docker-ZED-ROS2"`).
 - `dest` — where the runtime file is written (e.g. `${tfc_root}/config/tfc_paths.env`).
 - `owner`, `group`, `mode` — ownership/permissions of the written file.
 - The old `template`/`substitutions` mechanism is gone; a manifest still carrying
@@ -233,5 +237,5 @@ and `tfc_paths_env.exports`).
 Not handled here — separate, documented steps:
 
 - Cloning repositories (private repos: each member clones with their own SSH key).
-- Building/starting the container (`./jetson docker up --build`, see `Docker-ZED-ROS2/docker-compose.yml`).
+- Building/starting the container (`jetson docker up --build`, see `Docker-ZED-ROS2/docker-compose.yml`).
 - GNOME Remote Desktop (remote login / desktop sharing), configured manually.

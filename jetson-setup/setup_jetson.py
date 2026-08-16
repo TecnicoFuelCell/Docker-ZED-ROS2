@@ -664,7 +664,8 @@ def tfc_paths_env_ops(manifest, log):
     if exports:
         lines.append("")
         for key in sorted(exports):
-            lines.append('export {}="{}"'.format(key, exports[key]))
+            value = _env_ref_value(exports[key], name_to_env)
+            lines.append('export {}="{}"'.format(key, value))
     content = "\n".join(lines) + "\n"
 
     current = None

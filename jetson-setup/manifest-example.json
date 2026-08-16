@@ -55,11 +55,12 @@
     "mode": "0644",
     "exports": {
       "TFC_PROJECT": "tfc-autonomous",
-      "TFC_CONTAINER_NAME": "tfc-autonomous"
+      "TFC_CONTAINER_NAME": "tfc-autonomous",
+      "TFC_DOCKER_DIR": "${tfc_repositories}/Docker-ZED-ROS2"
     }
   },
   "sudoers": [
-    "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/git",
+    "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/git", 
     "%tfc-autonomous ALL=(tfcadmin) NOPASSWD: /usr/bin/vim"
   ]
 }
