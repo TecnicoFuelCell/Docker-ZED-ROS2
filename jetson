@@ -95,6 +95,8 @@ jetson_docker_logs() {
 # Enter the container with X11 support. Local GUI sessions are covered by the
 # compose mounts (DISPLAY, /tmp/.X11-unix, $HOME/.Xauthority); for SSH X11
 # forwarding the forwarded cookie is extracted and copied into the container.
+# The xauth file is per-user (permissions) and per-invocation inside the
+# container, so concurrent members with different DISPLAY values don't collide.
 jetson_docker_enter() {
     _jetson_load_env || return 1
     local container="$TFC_CONTAINER_NAME"
@@ -113,19 +115,18 @@ jetson_docker_enter() {
         echo "jetson: DISPLAY is not set - cannot forward X11" >&2
         return 1
     fi
-    local xauth=/tmp/.docker.xauth
-    local remote_xauth=/root/.Xauthority
+    local xauth="/tmp/.docker.xauth.$(id -u)"
+    local remote_xauth="/tmp/.Xauthority.$$"
     local cookie
     cookie="$(xauth list "$DISPLAY" 2>/dev/null | awk '{print $3}')"
     if [[ -z "$cookie" ]]; then
         echo "jetson: could not extract X11 cookie - is DISPLAY='$DISPLAY' valid?" >&2
         return 1
     fi
-    touch "$xauth"
+    (umask 077 && touch "$xauth")
     xauth -f "$xauth" remove "$DISPLAY" >/dev/null 2>&1 || true
     xauth -f "$xauth" add "$DISPLAY" . "$cookie"
-    docker cp "$xauth" "$container":/tmp/.Xauthority.new
-    docker exec "$container" sh -c "cat /tmp/.Xauthority.new > $remote_xauth"
+    docker cp "$xauth" "$container:$remote_xauth"
     local env_args=()
     while IFS= read -r line; do
         env_args+=(-e "$line")
