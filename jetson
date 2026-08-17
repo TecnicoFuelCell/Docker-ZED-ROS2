@@ -219,7 +219,7 @@ Subcommands:
   stop        stop the container (kept, restartable)
   down        stop and remove the container
   rm          force-remove the container
-enter       enter the container (X11 forwarding when DISPLAY is available)
+  enter       enter the container (X11 forwarding when DISPLAY is available)
   ps          show container status
   logs        tail the container logs
 EOF
