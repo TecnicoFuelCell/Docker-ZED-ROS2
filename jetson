@@ -121,6 +121,9 @@ jetson_docker_enter() {
     cookie="$(xauth list "$DISPLAY" 2>/dev/null | awk '{print $3}')"
     if [[ -z "$cookie" ]]; then
         echo "jetson: could not extract X11 cookie - is DISPLAY='$DISPLAY' valid?" >&2
+        echo "jetson: hint: if 'xauth list $DISPLAY' is empty, run 'xauth list' and check" >&2
+        echo "jetson: that ~/.Xauthority is writable (not root-owned); fix with:" >&2
+        echo "jetson:   sudo chown \$(id -u):\$(id -g) ~/.Xauthority" >&2
         return 1
     fi
     (umask 077 && touch "$xauth")

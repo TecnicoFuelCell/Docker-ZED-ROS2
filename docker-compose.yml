@@ -32,7 +32,6 @@ services:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: all
       XDG_RUNTIME_DIR: /tmp/runtime-root
-      XAUTHORITY: /root/.Xauthority
     volumes:
       - ${TFC_WS}:/workspace
       - ${TFC_ROOT}:${TFC_ROOT}
@@ -40,7 +39,6 @@ services:
       - /tmp:/tmp:rw
       - /var/nvidia/nvcam/settings:/var/nvidia/nvcam/settings:ro
       - /etc/systemd/system/zed_x_daemon.service:/etc/systemd/system/zed_x_daemon.service:ro
-      - ${HOME:-/root}/.Xauthority:/root/.Xauthority
       - /var/run/argus-daemon:/var/run/argus-daemon:rw
     devices:
       - /dev/video0

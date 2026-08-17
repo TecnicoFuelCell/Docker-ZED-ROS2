@@ -117,6 +117,20 @@ X11 check inside the container:
 xeyes # basic test with eyes to see if X11 is working
 ```
 
+### Troubleshooting X11
+
+- `ssh -X user@jetson` is required for X11 forwarding over SSH (sets
+  `DISPLAY=localhost:10.0` and the auth cookie).
+- If `ssh -X` reports `~/.Xauthority not writable, changes ignored`, the file is
+  root-owned (an old compose version bind-mounted it into the container as
+  `/root/.Xauthority` and created it as root). Fix once per member:
+  ```bash
+  sudo chown $(id -u):$(id -g) ~/.Xauthority
+  ```
+- If `jetson docker enter` says "could not extract X11 cookie", run
+  `xauth list $DISPLAY` — an empty result usually means the cookie couldn't be
+  stored (see above), or X11 forwarding wasn't negotiated.
+
 Scripts:
 
 ```
