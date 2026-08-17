@@ -74,7 +74,7 @@ Re-run it after any manifest change is applied so paths stay up to date.
 ```bash
 jetson docker up --build          # build + start (first run)
 jetson docker up                  # subsequent runs
-jetson docker enter               # enter with X11 forwarding
+jetson docker enter               # enter (X11 forwarded when DISPLAY is set)
 ```
 
 For a per-member instance from your own clone, add your overrides:
@@ -89,7 +89,7 @@ All commands:
 jetson docker build               # build the image from the Dockerfile
 jetson docker up                  # start the container
 jetson docker up --build          # build then start
-jetson docker enter               # enter with X11 forwarding (SSH-safe)
+jetson docker enter               # enter (X11 forwarded when DISPLAY is set)
 jetson docker stop                # stop, keep the container
 jetson docker down                # stop and remove the container
 jetson docker rm                  # force-remove the container
@@ -127,7 +127,10 @@ xeyes # basic test with eyes to see if X11 is working
   ```bash
   sudo chown $(id -u):$(id -g) ~/.Xauthority
   ```
-- If `jetson docker enter` says "could not extract X11 cookie", run
+- `jetson docker enter` works without X11: with no `DISPLAY` (plain `ssh`) or an
+  unusable cookie it warns and enters the container without GUI forwarding (CLI
+  and ROS2 macros still work). Use `ssh -X` for GUI apps.
+- If `jetson docker enter` warns "could not extract X11 cookie", run
   `xauth list $DISPLAY` — an empty result usually means the cookie couldn't be
   stored (see above), or X11 forwarding wasn't negotiated.
 
