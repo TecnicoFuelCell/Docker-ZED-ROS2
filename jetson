@@ -52,7 +52,7 @@ _jetson_load_env() {
     set +a
     export TFC_PROJECT="${TFC_PROJECT:-tfc-autonomous}"
     export TFC_CONTAINER_NAME="${TFC_CONTAINER_NAME:-tfc-autonomous}"
-    export TFC_WS="${TFC_WS:-${TFC_REPOSITORIES_DIR:-}/Autonomous_Systems/ros2_ws}"
+    export TFC_WS="${TFC_WS:-${TFC_REPOSITORIES_DIR:-}/autonomous-systems-vehicle}"
     export TFC_DOCKER_DIR="${TFC_DOCKER_DIR:-$JETSON_REPO_DIR}"
     JETSON_COMPOSE_FILE="$TFC_DOCKER_DIR/docker-compose.yml"
 }

@@ -40,10 +40,16 @@ services:
       - /var/nvidia/nvcam/settings:/var/nvidia/nvcam/settings:ro
       - /etc/systemd/system/zed_x_daemon.service:/etc/systemd/system/zed_x_daemon.service:ro
       - /var/run/argus-daemon:/var/run/argus-daemon:rw
+      # Bluetooth / input hotplug: bind-mount host /dev so js*/event*/hidraw* created
+      # after `docker up` (e.g. PS4 controller pairing) propagate into container.
+      # Also share D-Bus for BlueZ (bluetoothctl) and udev for hotplug events.
+      - /dev:/dev:rw
+      - /run/dbus:/run/dbus:ro
+      - /var/run/dbus:/var/run/dbus:ro
+      - /run/udev:/run/udev:ro
     devices:
       - /dev/video0
       - /dev/video1
       - /dev/dri:/dev/dri
-      - /dev:/dev
     working_dir: /workspace
     command: bash -lc "source '${TFC_CONFIG_DIR}/tfc_paths.env' 2>/dev/null || true; source /opt/ros/${ROS_DISTRO:-jazzy}/setup.bash 2>/dev/null || true; [ -f install/setup.bash ] && source install/setup.bash 2>/dev/null || true; exec bash"

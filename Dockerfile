@@ -38,6 +38,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     usbutils \
     v4l-utils \
+    bluez \
+    joystick \
+    evtest \
     vim \
     wget \
     libeigen3-dev \
@@ -94,6 +97,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-${ROS_DISTRO}-visualization-msgs \
     ros-${ROS_DISTRO}-xacro \
     ros-${ROS_DISTRO}-yaml-cpp-vendor \
+    ros-${ROS_DISTRO}-joy \
+    python3-evdev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN rosdep init || true
