@@ -8,7 +8,7 @@ current_dir="$PWD"
 default_image="sim"
 default_container="sim"
 
-default_workspace="$(realpath -m "$current_dir/../Autonomous_Systems/ros2_ws")"
+default_workspace="$(realpath -m "$current_dir/../autonomous-systems-simulation/ros2_ws")"
 
 read -rp "Docker image name [$default_image]: " image_name
 image_name="${image_name:-$default_image}"
