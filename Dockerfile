@@ -136,7 +136,7 @@ RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbs
 # it before upgrading and errors out without this flag.
 RUN python3 -m pip install --break-system-packages --no-deps bezier==2024.6.20 && \
     python3 -m pip install --break-system-packages --ignore-installed \
-      "numpy>=2.0,<2.3" \
+      "numpy==1.26.4" \
       casadi \
       pandas \
       polars \
