@@ -36,8 +36,8 @@ You'll be prompted for:
 |---|---|---|
 | Docker image name | Name of the built image | `sim` |
 | Container name | Name of the running container | `sim` |
-| Workspace path to mount | Your local ROS2 workspace, mounted into the container so you can edit code from your host and build/run it inside | `../Autonomous_Systems/ros2_ws` |
-| Enable GUI/X11 forwarding? | Lets GUI apps (Gazebo, RViz) running inside the container display windows on your screen | No |
+| Workspace path to mount | Your local ROS2 workspace, mounted into the container so you can edit code from your host and build/run it inside | `../autonomous-systems-simulation/` |
+| Enable GUI/X11 forwarding? | Lets GUI apps (Gazebo, RViz) running inside the container display windows on your screen | Yes |
 | Enable GPU passthrough? | Gives the container access to your Nvidia GPU | Yes if image name contains `cuda`, otherwise No |
 | Privilege the container? | Grants broader hardware access (`/dev` mount), useful if you're connecting physical robot hardware | No |
 

@@ -8,7 +8,7 @@ current_dir="$PWD"
 default_image="sim"
 default_container="sim"
 
-default_workspace="$(realpath -m "$current_dir/../autonomous-systems-simulation/ros2_ws")"
+default_workspace="$(realpath -m "$current_dir/../autonomous-systems-simulation/")"
 
 read -rp "Docker image name [$default_image]: " image_name
 image_name="${image_name:-$default_image}"
@@ -16,7 +16,7 @@ image_name="${image_name:-$default_image}"
 read -rp "Container name [$default_container]: " container_name
 container_name="${container_name:-$default_container}"
 
-# --- NEW: detect an existing container with this name ---
+# detect an existing container with this name ---
 if docker container inspect "$container_name" >/dev/null 2>&1; then
     container_state="$(docker container inspect -f '{{.State.Status}}' "$container_name")"
     echo "A container named '$container_name' already exists (state: $container_state)."
@@ -42,7 +42,7 @@ if docker container inspect "$container_name" >/dev/null 2>&1; then
         fi
     fi
 fi
-# --- end new block ---
+# --- end block ---
 
 read -rp "Workspace path to mount [$default_workspace]: " workspace_input
 workspace_input="${workspace_input:-$default_workspace}"
@@ -53,8 +53,9 @@ else
     workspace="$(realpath -m "$current_dir/$workspace_input")"
 fi
 
-read -rp "Enable GUI/X11 forwarding? (y/N): " use_gui
-use_gui="${use_gui:-N}"
+# GUI/X11
+read -rp "Enable GUI/X11 forwarding? (Y/n): " use_gui
+use_gui="${use_gui:-Y}"
 
 default_gpu="N"
 if [[ "$image_name" =~ cuda ]]; then

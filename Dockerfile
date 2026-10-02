@@ -98,7 +98,7 @@ RUN git clone --branch 4.2.0 --depth 1 https://github.com/borglab/gtsam.git && \
 RUN pip3 install --upgrade --ignore-installed pip --break-system-packages
 RUN pip3 install --break-system-packages "setuptools<81" wheel
 RUN pip3 install --ignore-installed --break-system-packages psutil \
-    numpy \
+    "numpy<2.0.0" \
     transforms3d \
     scikit-learn \
     filterpy \
