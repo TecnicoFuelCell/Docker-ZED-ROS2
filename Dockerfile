@@ -85,6 +85,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-${ROS_DISTRO}-robot-state-publisher \
     ros-${ROS_DISTRO}-ros-base \
     ros-${ROS_DISTRO}-rosbridge-server \
+    ros-${ROS_DISTRO}-rqt-image-view \
     ros-${ROS_DISTRO}-rviz2 \
     ros-${ROS_DISTRO}-sensor-msgs \
     ros-${ROS_DISTRO}-std-msgs \
