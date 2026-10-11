@@ -119,20 +119,24 @@ xeyes # basic test with eyes to see if X11 is working
 
 ### Troubleshooting X11
 
-- `ssh -X user@jetson` is required for X11 forwarding over SSH (sets
-  `DISPLAY=localhost:10.0` and the auth cookie).
+- Both `ssh -X user@jetson` (`DISPLAY=localhost:10.0`) and a terminal on the
+  Jetson's own desktop (`DISPLAY=:0`, cookie in `$XAUTHORITY`) are supported.
+  `jetson docker enter` re-exports `DISPLAY`/`XAUTHORITY` on every entry, so a
+  stale `DISPLAY` frozen into the container at `jetson docker up` is overridden.
+- `xauth` must be installed on the host (`sudo apt install xauth`).
 - If `ssh -X` reports `~/.Xauthority not writable, changes ignored`, the file is
   root-owned (an old compose version bind-mounted it into the container as
   `/root/.Xauthority` and created it as root). Fix once per member:
   ```bash
   sudo chown $(id -u):$(id -g) ~/.Xauthority
   ```
-- `jetson docker enter` works without X11: with no `DISPLAY` (plain `ssh`) or an
-  unusable cookie it warns and enters the container without GUI forwarding (CLI
-  and ROS2 macros still work). Use `ssh -X` for GUI apps.
+- `jetson docker enter` works without X11: with no `DISPLAY` (plain `ssh`) it
+  warns and enters the container without GUI forwarding (CLI and ROS2 macros
+  still work). Use `ssh -X` or the local desktop for GUI apps.
 - If `jetson docker enter` warns "could not extract X11 cookie", run
-  `xauth list $DISPLAY` — an empty result usually means the cookie couldn't be
-  stored (see above), or X11 forwarding wasn't negotiated.
+  `xauth -f "${XAUTHORITY:-$HOME/.Xauthority}" list` on the host — an empty
+  result usually means the cookie couldn't be stored (see above), or X11
+  forwarding wasn't negotiated.
 
 Scripts:
 
